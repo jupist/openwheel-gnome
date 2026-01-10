@@ -1,0 +1,83 @@
+{
+  "id": "system-default",
+  "displayName": "System",
+  "processNames": [],
+  "isDefault": true,
+
+  "functions": [
+    {
+      "id": "volume",
+      "label": "Volume",
+      "iconName": "audio-volume-high",
+      "type": "continuous",
+      "minValue": 0,
+      "maxValue": 100,
+      "unit": "%",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "XF86AudioRaiseVolume",
+        "rotationThreshold": 15
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "XF86AudioLowerVolume",
+        "rotationThreshold": 15
+      }
+    },
+    {
+      "id": "brightness",
+      "label": "Brightness",
+      "iconName": "brightness-high",
+      "type": "continuous",
+      "minValue": 0,
+      "maxValue": 100,
+      "unit": "%",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "XF86MonBrightnessUp",
+        "rotationThreshold": 15
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "XF86MonBrightnessDown",
+        "rotationThreshold": 15
+      }
+    },
+    {
+      "id": "scroll",
+      "label": "Scroll",
+      "iconName": "go-down-symbolic",
+      "type": "continuous",
+      "clockwiseAction": {
+        "type": "mouseScroll",
+        "delta": -3,
+        "rotationThreshold": 10
+      },
+      "counterClockwiseAction": {
+        "type": "mouseScroll",
+        "delta": 3,
+        "rotationThreshold": 10
+      }
+    },
+    {
+      "id": "zoom",
+      "label": "Zoom",
+      "iconName": "zoom-in",
+      "type": "continuous",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "plus",
+        "modifiers": ["ctrl"],
+        "rotationThreshold": 20
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "minus",
+        "modifiers": ["ctrl"],
+        "rotationThreshold": 20
+      }
+    }
+  ],
+
+  "defaultMenuLayout": ["volume", "brightness", "scroll", "zoom"]
+}
