@@ -1,0 +1,59 @@
+{
+  "id": "blender",
+  "displayName": "Blender",
+  "processNames": ["blender", "blender.exe"],
+  "windowClassPattern": "^Blender$",
+
+  "functions": [
+    {
+      "id": "zoom",
+      "label": "Zoom",
+      "iconName": "zoom-in",
+      "type": "continuous",
+      "clockwiseAction": {
+        "type": "mouseScroll",
+        "delta": 1,
+        "rotationThreshold": 10
+      },
+      "counterClockwiseAction": {
+        "type": "mouseScroll",
+        "delta": -1,
+        "rotationThreshold": 10
+      }
+    },
+    {
+      "id": "timeline",
+      "label": "Timeline",
+      "iconName": "timeline-use-zone-on",
+      "type": "continuous",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "right",
+        "rotationThreshold": 15
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "left",
+        "rotationThreshold": 15
+      }
+    },
+    {
+      "id": "undo",
+      "label": "Undo / Redo",
+      "iconName": "edit-undo",
+      "type": "discrete",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "z",
+        "modifiers": ["ctrl", "shift"]
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "z",
+        "modifiers": ["ctrl"]
+      }
+    }
+  ],
+
+  "defaultMenuLayout": ["zoom", "timeline", "undo"]
+}
