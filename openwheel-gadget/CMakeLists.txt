@@ -13,7 +13,11 @@ find_package(Qt6 QUIET COMPONENTS Core Gui Widgets Qml Quick DBus)
 
 if(NOT Qt6_FOUND)
     message(STATUS "Qt6 not found, trying Qt5...")
-    find_package(Qt5 5.15 REQUIRED COMPONENTS Core Gui Widgets Qml Quick DBus)
+    find_package(Qt5 5.15 QUIET COMPONENTS Core Gui Widgets Qml Quick DBus)
+    if(NOT Qt5_FOUND)
+        message(WARNING "Neither Qt6 nor Qt5 found - gadget will not be built")
+        return()
+    endif()
     set(QT_VERSION_MAJOR 5)
 else()
     set(QT_VERSION_MAJOR 6)
@@ -122,16 +126,44 @@ if(HAVE_X11)
     )
 endif()
 
-# Install
-install(TARGETS openwheel-gadget DESTINATION bin)
+# Installation
+install(TARGETS openwheel-gadget
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT gadget
+)
 
 # Install profiles
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/profiles/
-        DESTINATION share/openwheel/profiles
-        FILES_MATCHING PATTERN "*.json")
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/openwheel/profiles
+    FILES_MATCHING PATTERN "*.json"
+    COMPONENT data
+)
+
+# Install desktop file if it exists
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/openwheel-gadget.desktop)
+    install(FILES openwheel-gadget.desktop
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+        COMPONENT data
+    )
+endif()
+
+# Install icon if it exists
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/openwheel-gadget.png)
+    install(FILES openwheel-gadget.png
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/128x128/apps
+        COMPONENT data
+    )
+endif()
+
+# Install headers for development
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openwheel-gadget
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+    COMPONENT gadget-dev
+)
 
 message(STATUS "")
-message(STATUS "Configuration summary:")
+message(STATUS "Gadget Configuration Summary:")
 message(STATUS "  Qt version: ${QT_VERSION_MAJOR}")
 message(STATUS "  KDE Frameworks: ${HAVE_KF6}")
 message(STATUS "  X11 support: ${HAVE_X11}")
