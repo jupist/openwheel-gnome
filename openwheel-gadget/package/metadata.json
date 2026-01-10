@@ -1,0 +1,16 @@
+{
+  "KPackageStructure": "Plasma/Applet",
+  "KPlugin": {
+    "Id": "org.openwheel.gadget",
+    "Name": "OpenWheel Gadget",
+    "Description": "Placeholder Plasma applet for OpenWheel",
+    "Version": "0.1.0",
+    "Website": "https://example.com",
+    "License": "GPL-3.0-or-later",
+    "Authors": [
+      {
+        "Name": "OpenWheel"
+      }
+    ]
+  }
+}
