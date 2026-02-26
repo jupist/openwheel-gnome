@@ -6,6 +6,8 @@
 #include <QObject>
 #include <QVariantList>
 #include <memory>
+#include <array>
+#include "../profiles/profile.h"
 
 class ProfileManager;
 class ApplicationMatcher;
@@ -22,11 +24,11 @@ class DialController : public QObject
 {
     Q_OBJECT
 
-    Q_PROPERTY(bool active READ isActive NOTIFY activeChanged)
+    Q_PROPERTY(int active READ isActive NOTIFY activeChanged)
     Q_PROPERTY(QString currentProfileName READ currentProfileName NOTIFY profileChanged)
     Q_PROPERTY(int selectedFunctionIndex READ selectedFunctionIndex NOTIFY selectionChanged)
     Q_PROPERTY(QVariantList currentFunctions READ currentFunctions NOTIFY functionsChanged)
-    Q_PROPERTY(bool isAdjusting READ isAdjusting NOTIFY adjustingChanged)
+    Q_PROPERTY(int isAdjusting READ isAdjusting NOTIFY adjustingChanged)
     Q_PROPERTY(qreal currentValue READ currentValue NOTIFY valueChanged)
     Q_PROPERTY(QString currentUnit READ currentUnit NOTIFY functionChanged)
     Q_PROPERTY(qreal currentMinValue READ currentMinValue NOTIFY functionChanged)
@@ -41,11 +43,11 @@ public:
      */
     void initialize();
 
-    bool isActive() const { return m_active; }
+    int isActive() const { return m_active; }
     QString currentProfileName() const;
     int selectedFunctionIndex() const { return m_selectedIndex; }
     QVariantList currentFunctions() const;
-    bool isAdjusting() const;
+    int isAdjusting() const;
     qreal currentValue() const;
     QString currentUnit() const;
     qreal currentMinValue() const;
@@ -59,13 +61,13 @@ public:
     Q_INVOKABLE void confirmSelection();
 
 Q_SIGNALS:
-    void activeChanged(bool active);
+    void activeChanged(int active);
     void profileChanged(const QString &profileName);
     void selectionChanged(int index);
     void functionsChanged();
     void functionChanged();
     void valueChanged(qreal value);
-    void adjustingChanged(bool adjusting);
+    void adjustingChanged(int adjusting);
     void rotationTick();
 
 private Q_SLOTS:
@@ -89,7 +91,7 @@ private:
     std::unique_ptr<ActionExecutor> m_actionExecutor;
     std::unique_ptr<RotationHandler> m_rotationHandler;
 
-    bool m_active = false;
+    int m_active = 0;
     int m_selectedIndex = 0;
     QString m_currentProfileId;
 };

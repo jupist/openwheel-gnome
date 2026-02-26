@@ -52,14 +52,14 @@ private:
     void cleanupX11();
 
 #ifdef HAVE_X11
-    void sendKeyX11(const QString &keys, Qt::KeyboardModifiers modifiers, bool press);
-    void sendModifiersX11(Qt::KeyboardModifiers modifiers, bool press);
+    void sendKeyX11(const QString &keys, Qt::KeyboardModifiers modifiers, int press);
+    void sendModifiersX11(Qt::KeyboardModifiers modifiers, int press);
     void sendMouseScrollX11(int delta, Qt::Orientation orientation);
     KeySym qtKeyToX11Keysym(const QString &key);
     Qt::Key parseKeyString(const QString &keyStr);
 #endif
 
-    bool m_x11Available = false;
+    int m_x11Available = 0;
 
 #ifdef HAVE_X11
     Display *m_display = nullptr;

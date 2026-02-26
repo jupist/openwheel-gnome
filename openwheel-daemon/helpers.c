@@ -234,7 +234,18 @@ void send_notification(const char *summary, const char *body) {
     dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &icon);      // Icon
     dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &summary);   // Summary (title)
     dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &body);      // Body (message)
-    dbus_message_iter_append_basic(&args, DBUS_TYPE_ARRAY, &timeout);    // Timeout
+
+    // Actions (as) - empty
+    DBusMessageIter actions_iter;
+    dbus_message_iter_open_container(&args, DBUS_TYPE_ARRAY, "s", &actions_iter);
+    dbus_message_iter_close_container(&args, &actions_iter);
+
+    // Hints (a{sv}) - empty
+    DBusMessageIter hints_iter;
+    dbus_message_iter_open_container(&args, DBUS_TYPE_ARRAY, "{sv}", &hints_iter);
+    dbus_message_iter_close_container(&args, &hints_iter);
+
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, &timeout);    // Timeout
 
     // Send the message
     if (!dbus_connection_send(conn, msg, &serial)) {

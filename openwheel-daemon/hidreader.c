@@ -12,9 +12,17 @@
 
 int main() {
     openlog("openwheel", LOG_PID, LOG_DAEMON);
-    int fd = open(HIDRAW_DEVICE, O_RDONLY);
+
+    char device_path[BUFFER_SIZE];
+    if (find_hidraw_device(device_path, sizeof(device_path)) < 0) {
+        syslog(LOG_ERR, "ASUS Dial device not found");
+        return 1;
+    }
+
+    syslog(LOG_INFO, "Found ASUS Dial at %s", device_path);
+    int fd = open(device_path, O_RDONLY);
     if (fd < 0) {
-        syslog(LOG_ERR, "Failed to open HID device %s", HIDRAW_DEVICE);
+        syslog(LOG_ERR, "Failed to open HID device %s", device_path);
         return 1;
     }
 

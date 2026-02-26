@@ -6,11 +6,11 @@
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDebug>
+#include <QThread>
 
 #ifdef HAVE_X11
 #include <X11/keysym.h>
 #include <X11/extensions/XTest.h>
-#include <QX11Info>
 #endif
 
 #ifdef HAVE_X11
@@ -198,7 +198,7 @@ void ActionExecutor::cleanupX11()
     }
 }
 
-void ActionExecutor::sendKeyX11(const QString &keys, Qt::KeyboardModifiers modifiers, bool press)
+void ActionExecutor::sendKeyX11(const QString &keys, Qt::KeyboardModifiers modifiers, int press)
 {
     if (!m_display) {
         return;
@@ -230,7 +230,7 @@ void ActionExecutor::sendKeyX11(const QString &keys, Qt::KeyboardModifiers modif
     }
 }
 
-void ActionExecutor::sendModifiersX11(Qt::KeyboardModifiers modifiers, bool press)
+void ActionExecutor::sendModifiersX11(Qt::KeyboardModifiers modifiers, int press)
 {
     if (!m_display) {
         return;

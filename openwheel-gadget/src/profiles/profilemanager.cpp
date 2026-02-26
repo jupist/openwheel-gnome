@@ -38,7 +38,7 @@ void ProfileManager::loadProfiles()
     // Find the default profile
     m_defaultProfileId = getDefaultProfileId();
 
-    if (m_profiles.isEmpty()) {
+    if (m_profiles.empty()) {
         qWarning() << "No profiles loaded!";
     } else {
         qDebug() << "Loaded" << m_profiles.size() << "profiles";
@@ -82,9 +82,9 @@ bool ProfileManager::loadProfile(const QString &filePath)
 
 const Profile* ProfileManager::getProfile(const QString &profileId) const
 {
-    auto it = m_profiles.constFind(profileId);
-    if (it != m_profiles.constEnd()) {
-        return it.value().get();
+    auto it = m_profiles.find(profileId);
+    if (it != m_profiles.end()) {
+        return it->second.get();
     }
     return nullptr;
 }
@@ -93,7 +93,7 @@ Profile* ProfileManager::getProfile(const QString &profileId)
 {
     auto it = m_profiles.find(profileId);
     if (it != m_profiles.end()) {
-        return it.value().get();
+        return it->second.get();
     }
     return nullptr;
 }
@@ -114,7 +114,7 @@ void ProfileManager::setCurrentProfile(const QString &profileId)
         return;
     }
 
-    if (!m_profiles.contains(profileId)) {
+    if (m_profiles.find(profileId) == m_profiles.end()) {
         qWarning() << "Profile not found:" << profileId;
         return;
     }
@@ -131,8 +131,8 @@ QString ProfileManager::findMatchingProfile(const QString &windowClass,
                                              const QString &processName) const
 {
     // First try to find a specific matching profile
-    for (auto it = m_profiles.constBegin(); it != m_profiles.constEnd(); ++it) {
-        const Profile *profile = it.value().get();
+    for (auto it = m_profiles.begin(); it != m_profiles.end(); ++it) {
+        const Profile *profile = it->second.get();
         if (!profile->isDefault && profile->matches(windowClass, windowTitle, processName)) {
             qDebug() << "Found matching profile:" << profile->id
                      << "for window:" << windowClass << "/" << processName;
@@ -147,7 +147,11 @@ QString ProfileManager::findMatchingProfile(const QString &windowClass,
 
 QStringList ProfileManager::getProfileIds() const
 {
-    return m_profiles.keys();
+    QStringList ids;
+    for (auto const& [key, val] : m_profiles) {
+        ids << key;
+    }
+    return ids;
 }
 
 QString ProfileManager::currentProfileName() const
@@ -159,20 +163,20 @@ QString ProfileManager::currentProfileName() const
 QString ProfileManager::getDefaultProfileId() const
 {
     // Find the profile marked as default
-    for (auto it = m_profiles.constBegin(); it != m_profiles.constEnd(); ++it) {
-        if (it.value()->isDefault) {
-            return it.key();
+    for (auto it = m_profiles.begin(); it != m_profiles.end(); ++it) {
+        if (it->second->isDefault) {
+            return it->first;
         }
     }
 
     // If no default is marked, use "system-default" if it exists
-    if (m_profiles.contains(QStringLiteral("system-default"))) {
+    if (m_profiles.find(QStringLiteral("system-default")) != m_profiles.end()) {
         return QStringLiteral("system-default");
     }
 
     // Fall back to any profile
-    if (!m_profiles.isEmpty()) {
-        return m_profiles.constBegin().key();
+    if (!m_profiles.empty()) {
+        return m_profiles.begin()->first;
     }
 
     return QString();

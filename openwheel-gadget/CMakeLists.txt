@@ -9,11 +9,11 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Try to find Qt6 first
-find_package(Qt6 QUIET COMPONENTS Core Gui Widgets Qml Quick DBus)
+find_package(Qt6 QUIET COMPONENTS Core Gui Widgets Qml Quick DBus QuickControls2)
 
 if(NOT Qt6_FOUND)
     message(STATUS "Qt6 not found, trying Qt5...")
-    find_package(Qt5 5.15 QUIET COMPONENTS Core Gui Widgets Qml Quick DBus)
+    find_package(Qt5 5.15 QUIET COMPONENTS Core Gui Widgets Qml Quick DBus QuickControls2)
     if(NOT Qt5_FOUND)
         message(WARNING "Neither Qt6 nor Qt5 found - gadget will not be built")
         return()
@@ -91,6 +91,7 @@ if(QT_VERSION_MAJOR EQUAL 6)
         Qt6::Qml
         Qt6::Quick
         Qt6::DBus
+        Qt6::QuickControls2
     )
 else()
     target_link_libraries(openwheel-gadget
@@ -100,6 +101,7 @@ else()
         Qt5::Qml
         Qt5::Quick
         Qt5::DBus
+        Qt5::QuickControls2
     )
 endif()
 
@@ -121,8 +123,8 @@ endif()
 # Link X11 libraries if available
 if(HAVE_X11)
     target_link_libraries(openwheel-gadget
-        X11::X11
-        X11::XTest
+        ${X11_LIBRARIES}
+        ${X11_XTest_LIB}
     )
 endif()
 
@@ -135,8 +137,8 @@ install(TARGETS openwheel-gadget
 # Install profiles
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/profiles/
     DESTINATION ${CMAKE_INSTALL_DATADIR}/openwheel/profiles
-    FILES_MATCHING PATTERN "*.json"
     COMPONENT data
+    FILES_MATCHING PATTERN "*.json"
 )
 
 # Install desktop file if it exists
@@ -158,8 +160,8 @@ endif()
 # Install headers for development
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openwheel-gadget
-    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
     COMPONENT gadget-dev
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 
 message(STATUS "")

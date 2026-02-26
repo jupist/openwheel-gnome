@@ -5,9 +5,9 @@
 
 #include "profile.h"
 #include <QObject>
-#include <QHash>
 #include <QString>
 #include <memory>
+#include <map>
 
 /**
  * Manages loading, caching, and switching between profiles
@@ -72,7 +72,7 @@ private:
     void loadProfilesFromDirectory(const QString &dirPath);
     QString getDefaultProfileId() const;
 
-    QHash<QString, std::unique_ptr<Profile>> m_profiles;
+    std::map<QString, std::unique_ptr<Profile>> m_profiles;
     QString m_currentProfileId;
     QString m_defaultProfileId;
 };

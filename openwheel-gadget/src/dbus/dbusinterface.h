@@ -19,13 +19,13 @@ public:
     explicit DBusInterface(QObject *parent = nullptr);
     ~DBusInterface() override;
 
-    bool isConnected() const { return m_connected; }
+    int isConnected() const { return m_connected; }
 
 Q_SIGNALS:
     void rotationChanged(int delta);
     void buttonPressed();
     void buttonReleased();
-    void connectionStatusChanged(bool connected);
+    void connectionStatusChanged(int isConnected);
 
 private Q_SLOTS:
     void onDialRotate(const QDBusMessage &message);
@@ -36,6 +36,6 @@ private:
     void setupSignalHandlers();
 
     QDBusConnection m_connection;
-    bool m_connected = false;
-    bool m_lastButtonState = false;  // Track button state for press/release detection
+    int m_connected = 0;
+    int m_lastButtonState = 0;  // Track button state for press/release detection
 };

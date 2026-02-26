@@ -122,7 +122,7 @@ void RotationHandler::reset()
     qDebug() << "RotationHandler reset";
 }
 
-void RotationHandler::setAccelerationEnabled(bool enabled)
+void RotationHandler::setAccelerationEnabled(int enabled)
 {
     m_accelerationEnabled = enabled;
     qDebug() << "Acceleration" << (enabled ? "enabled" : "disabled");

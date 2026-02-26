@@ -5,6 +5,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickStyle>
+#include <QIcon>
 #include <QDebug>
 
 #ifndef NO_KDE_FRAMEWORKS

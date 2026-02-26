@@ -274,7 +274,7 @@ QVariantList DialController::currentFunctions() const
     return result;
 }
 
-bool DialController::isAdjusting() const
+int DialController::isAdjusting() const
 {
     return m_rotationHandler->isAdjusting();
 }

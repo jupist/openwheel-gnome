@@ -5,6 +5,7 @@
 
 #ifndef NO_KDE_FRAMEWORKS
 #include <KWindowSystem>
+#include <KWindowInfo>
 #ifdef HAVE_X11
 #include <KX11Extras>
 #endif
@@ -38,13 +39,8 @@ void ApplicationMatcher::startMonitoring()
         connect(KX11Extras::self(), &KX11Extras::activeWindowChanged,
                 this, &ApplicationMatcher::onActiveWindowChanged);
         qDebug() << "Using X11 window tracking";
-    } else
-#endif
-    {
-        connect(KWindowSystem::self(), &KWindowSystem::activeWindowChanged,
-                this, &ApplicationMatcher::onActiveWindowChanged);
-        qDebug() << "Using KWindowSystem window tracking";
     }
+#endif
 #else
     qDebug() << "Window monitoring not available without KDE Frameworks";
     qDebug() << "Using default profile only";
@@ -71,12 +67,8 @@ void ApplicationMatcher::stopMonitoring()
     if (KWindowSystem::isPlatformX11()) {
         disconnect(KX11Extras::self(), &KX11Extras::activeWindowChanged,
                    this, &ApplicationMatcher::onActiveWindowChanged);
-    } else
-#endif
-    {
-        disconnect(KWindowSystem::self(), &KWindowSystem::activeWindowChanged,
-                   this, &ApplicationMatcher::onActiveWindowChanged);
     }
+#endif
 #endif
 
     m_monitoring = false;
@@ -92,7 +84,12 @@ void ApplicationMatcher::onActiveWindowChanged()
 void ApplicationMatcher::updateCurrentWindow()
 {
 #ifndef NO_KDE_FRAMEWORKS
-    WId windowId = KWindowSystem::activeWindow();
+    WId windowId = 0;
+#ifdef HAVE_X11
+    if (KWindowSystem::isPlatformX11()) {
+        windowId = KX11Extras::activeWindow();
+    }
+#endif
 
     if (windowId == 0) {
         qDebug() << "No active window";

@@ -1,5 +1,22 @@
 # Tests for OpenWheel
 
+set(CMAKE_AUTOMOC ON)
+find_package(Qt6 REQUIRED COMPONENTS Core Test Gui)
+
+# Define source files needed for testing
+set(TEST_COMMON_SRCS
+    ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/core/rotationhandler.cpp
+    ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/profiles/profile.cpp
+)
+
+# Rotation test
+add_executable(test_rotation test_rotation.cpp ${TEST_COMMON_SRCS})
+target_include_directories(test_rotation PRIVATE
+    ${CMAKE_SOURCE_DIR}/openwheel-gadget/src
+)
+target_link_libraries(test_rotation PRIVATE Qt6::Core Qt6::Test Qt6::Gui)
+add_test(NAME test_rotation COMMAND test_rotation)
+
 # Basic sanity test - check if executables exist
 add_test(
     NAME check_build_outputs

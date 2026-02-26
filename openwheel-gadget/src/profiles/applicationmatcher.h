@@ -50,5 +50,5 @@ private:
     QString m_currentWindowClass;
     QString m_currentWindowName;
     QString m_currentProcessName;
-    bool m_monitoring = false;
+    int m_monitoring = 0;
 };
