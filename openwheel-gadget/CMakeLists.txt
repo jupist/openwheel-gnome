@@ -9,11 +9,11 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Try to find Qt6 first
-find_package(Qt6 QUIET COMPONENTS Core Gui Widgets Qml Quick DBus QuickControls2)
+find_package(Qt6 QUIET COMPONENTS Core Gui Widgets Qml Quick QuickControls2 DBus)
 
 if(NOT Qt6_FOUND)
     message(STATUS "Qt6 not found, trying Qt5...")
-    find_package(Qt5 5.15 QUIET COMPONENTS Core Gui Widgets Qml Quick DBus QuickControls2)
+    find_package(Qt5 5.15 QUIET COMPONENTS Core Gui Widgets Qml Quick QuickControls2 DBus)
     if(NOT Qt5_FOUND)
         message(WARNING "Neither Qt6 nor Qt5 found - gadget will not be built")
         return()
@@ -73,6 +73,7 @@ set(openwheel_gadget_SRCS
     src/profiles/profilemanager.cpp
     src/profiles/applicationmatcher.cpp
     src/dbus/dbusinterface.cpp
+    src/ui/ui.qrc
 )
 
 # Create executable
@@ -90,6 +91,7 @@ if(QT_VERSION_MAJOR EQUAL 6)
         Qt6::Widgets
         Qt6::Qml
         Qt6::Quick
+        Qt6::QuickControls2
         Qt6::DBus
         Qt6::QuickControls2
     )
@@ -100,6 +102,7 @@ else()
         Qt5::Widgets
         Qt5::Qml
         Qt5::Quick
+        Qt5::QuickControls2
         Qt5::DBus
         Qt5::QuickControls2
     )

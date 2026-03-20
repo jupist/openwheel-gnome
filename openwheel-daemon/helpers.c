@@ -167,21 +167,35 @@ int find_hidraw_device(char *device_path, size_t path_size) {
     while ((entry = readdir(dp)) != NULL) {
         if (entry->d_type == DT_LNK) {
             char sysfs_device_path[BUFFER_SIZE];
-            char product_name[BUFFER_SIZE];
+            char file_content[BUFFER_SIZE];
 
-            // Build the path to the 'device' symlink
+            // Try USB path first: device/product
             snprintf(sysfs_device_path, sizeof(sysfs_device_path),
                      "%s%s/device/product", SYSFS_HIDRAW_PATH, entry->d_name);
 
-            // Read the product name of the HID device
-            if (read_sysfs_file(sysfs_device_path, product_name, sizeof(product_name)) == 0) {
-                // Check if the product name matches "ASUS2020"
-                if (strstr(product_name, DEVICE_NAME)) {
-                    // Build the path to the hidraw device
+            if (read_sysfs_file(sysfs_device_path, file_content, sizeof(file_content)) == 0) {
+                if (strstr(file_content, DEVICE_NAME)) {
                     snprintf(device_path, path_size, "/dev/%s", entry->d_name);
                     closedir(dp);
-                    return 0;  // Found the device
+                    return 0;
                 }
+            }
+
+            // Try I2C/generic path: device/uevent (contains HID_NAME=...)
+            snprintf(sysfs_device_path, sizeof(sysfs_device_path),
+                     "%s%s/device/uevent", SYSFS_HIDRAW_PATH, entry->d_name);
+
+            FILE *fp = fopen(sysfs_device_path, "r");
+            if (fp != NULL) {
+                while (fgets(file_content, sizeof(file_content), fp) != NULL) {
+                    if (strstr(file_content, DEVICE_NAME)) {
+                        fclose(fp);
+                        snprintf(device_path, path_size, "/dev/%s", entry->d_name);
+                        closedir(dp);
+                        return 0;
+                    }
+                }
+                fclose(fp);
             }
         }
     }

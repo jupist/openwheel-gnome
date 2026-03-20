@@ -76,7 +76,8 @@ bool ProfileManager::loadProfile(const QString &filePath)
 
     qDebug() << "Loaded profile:" << profile.id << "(" << profile.displayName << ")";
 
-    m_profiles[profile.id] = std::make_unique<Profile>(std::move(profile));
+    QString id = profile.id;
+    m_profiles[id] = QSharedPointer<Profile>::create(std::move(profile));
     return true;
 }
 
@@ -84,7 +85,7 @@ const Profile* ProfileManager::getProfile(const QString &profileId) const
 {
     auto it = m_profiles.find(profileId);
     if (it != m_profiles.end()) {
-        return it->second.get();
+        return it.value().get();
     }
     return nullptr;
 }
@@ -93,7 +94,7 @@ Profile* ProfileManager::getProfile(const QString &profileId)
 {
     auto it = m_profiles.find(profileId);
     if (it != m_profiles.end()) {
-        return it->second.get();
+        return it.value().get();
     }
     return nullptr;
 }
@@ -114,7 +115,7 @@ void ProfileManager::setCurrentProfile(const QString &profileId)
         return;
     }
 
-    if (m_profiles.find(profileId) == m_profiles.end()) {
+    if (!m_profiles.contains(profileId)) {
         qWarning() << "Profile not found:" << profileId;
         return;
     }
@@ -132,7 +133,7 @@ QString ProfileManager::findMatchingProfile(const QString &windowClass,
 {
     // First try to find a specific matching profile
     for (auto it = m_profiles.begin(); it != m_profiles.end(); ++it) {
-        const Profile *profile = it->second.get();
+        const Profile *profile = it.value().get();
         if (!profile->isDefault && profile->matches(windowClass, windowTitle, processName)) {
             qDebug() << "Found matching profile:" << profile->id
                      << "for window:" << windowClass << "/" << processName;
@@ -148,9 +149,7 @@ QString ProfileManager::findMatchingProfile(const QString &windowClass,
 QStringList ProfileManager::getProfileIds() const
 {
     QStringList ids;
-    for (auto const& [key, val] : m_profiles) {
-        ids << key;
-    }
+    ids = m_profiles.keys();
     return ids;
 }
 
@@ -164,19 +163,19 @@ QString ProfileManager::getDefaultProfileId() const
 {
     // Find the profile marked as default
     for (auto it = m_profiles.begin(); it != m_profiles.end(); ++it) {
-        if (it->second->isDefault) {
-            return it->first;
+        if (it.value()->isDefault) {
+            return it.key();
         }
     }
 
     // If no default is marked, use "system-default" if it exists
-    if (m_profiles.find(QStringLiteral("system-default")) != m_profiles.end()) {
+    if (m_profiles.contains(QStringLiteral("system-default"))) {
         return QStringLiteral("system-default");
     }
 
     // Fall back to any profile
     if (!m_profiles.empty()) {
-        return m_profiles.begin()->first;
+        return m_profiles.begin().key();
     }
 
     return QString();

@@ -3,7 +3,6 @@
   "displayName": "System",
   "processNames": [],
   "isDefault": true,
-
   "functions": [
     {
       "id": "volume",
@@ -16,18 +15,18 @@
       "clockwiseAction": {
         "type": "keyboard",
         "keys": "XF86AudioRaiseVolume",
-        "rotationThreshold": 15
+        "rotationThreshold": 5
       },
       "counterClockwiseAction": {
         "type": "keyboard",
         "keys": "XF86AudioLowerVolume",
-        "rotationThreshold": 15
+        "rotationThreshold": 5
       }
     },
     {
       "id": "brightness",
       "label": "Brightness",
-      "iconName": "brightness-high",
+      "iconName": "display-brightness",
       "type": "continuous",
       "minValue": 0,
       "maxValue": 100,
@@ -35,49 +34,46 @@
       "clockwiseAction": {
         "type": "keyboard",
         "keys": "XF86MonBrightnessUp",
-        "rotationThreshold": 15
+        "rotationThreshold": 5
       },
       "counterClockwiseAction": {
         "type": "keyboard",
         "keys": "XF86MonBrightnessDown",
-        "rotationThreshold": 15
-      }
-    },
-    {
-      "id": "scroll",
-      "label": "Scroll",
-      "iconName": "go-down-symbolic",
-      "type": "continuous",
-      "clockwiseAction": {
-        "type": "mouseScroll",
-        "delta": -3,
-        "rotationThreshold": 10
-      },
-      "counterClockwiseAction": {
-        "type": "mouseScroll",
-        "delta": 3,
-        "rotationThreshold": 10
+        "rotationThreshold": 5
       }
     },
     {
       "id": "zoom",
       "label": "Zoom",
       "iconName": "zoom-in",
-      "type": "continuous",
+      "type": "discrete",
       "clockwiseAction": {
         "type": "keyboard",
-        "keys": "plus",
-        "modifiers": ["ctrl"],
-        "rotationThreshold": 20
+        "keys": "ZoomIn",
+        "rotationThreshold": 5
       },
       "counterClockwiseAction": {
         "type": "keyboard",
-        "keys": "minus",
-        "modifiers": ["ctrl"],
-        "rotationThreshold": 20
+        "keys": "ZoomOut",
+        "rotationThreshold": 5
+      }
+    },
+    {
+      "id": "scroll",
+      "label": "Scroll",
+      "iconName": "view-scroll-vertical",
+      "type": "discrete",
+      "clockwiseAction": {
+        "type": "mouseScroll",
+        "delta": -3,
+        "rotationThreshold": 3
+      },
+      "counterClockwiseAction": {
+        "type": "mouseScroll",
+        "delta": 3,
+        "rotationThreshold": 3
       }
     }
   ],
-
-  "defaultMenuLayout": ["volume", "brightness", "scroll", "zoom"]
+  "defaultMenuLayout": ["volume", "brightness", "zoom", "scroll"]
 }

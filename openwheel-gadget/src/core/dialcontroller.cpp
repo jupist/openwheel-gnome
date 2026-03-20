@@ -11,11 +11,11 @@
 
 DialController::DialController(QObject *parent)
     : QObject(parent)
-    , m_dbusInterface(std::make_unique<DBusInterface>())
-    , m_profileManager(std::make_unique<ProfileManager>())
-    , m_appMatcher(std::make_unique<ApplicationMatcher>())
-    , m_actionExecutor(std::make_unique<ActionExecutor>())
-    , m_rotationHandler(std::make_unique<RotationHandler>())
+    , m_dbusInterface(new DBusInterface())
+    , m_profileManager(new ProfileManager())
+    , m_appMatcher(new ApplicationMatcher())
+    , m_actionExecutor(new ActionExecutor())
+    , m_rotationHandler(new RotationHandler())
 {
     setupConnections();
 }
@@ -62,10 +62,16 @@ void DialController::setupConnections()
             this, &DialController::onActionTriggered);
     connect(m_rotationHandler.get(), &RotationHandler::rotationTick,
             this, &DialController::rotationTick);
-    connect(m_rotationHandler.get(), &RotationHandler::valueChanged,
-            this, &DialController::valueChanged);
+    // RotationHandler::valueChanged carries raw accumulated degrees — don't
+    // forward it to QML.  Real system values come from ActionExecutor instead.
     connect(m_rotationHandler.get(), &RotationHandler::adjustingChanged,
             this, &DialController::adjustingChanged);
+
+    // When the action executor reports a real system value, update the UI
+    connect(m_actionExecutor.get(), &ActionExecutor::systemValueChanged,
+            this, [this](qreal value, qreal, qreal) {
+                Q_EMIT valueChanged(value);
+            });
 }
 
 void DialController::activate()
@@ -171,17 +177,34 @@ void DialController::onRotationChanged(int delta)
 void DialController::onButtonPressed()
 {
     qDebug() << "DialController: Button pressed";
-
-    // Activate overlay
-    activate();
 }
 
 void DialController::onButtonReleased()
 {
     qDebug() << "DialController: Button released";
 
-    // Deactivate overlay
-    deactivate();
+    m_clickCount++;
+
+    if (m_clickCount == 1) {
+        if (!m_clickDecisionTimer) {
+            m_clickDecisionTimer = new QTimer(this);
+            m_clickDecisionTimer->setSingleShot(true);
+            m_clickDecisionTimer->setInterval(DOUBLE_CLICK_INTERVAL);
+            connect(m_clickDecisionTimer, &QTimer::timeout, this, [this]() {
+                if (m_clickCount == 1) {
+                    qDebug() << "Single click (ignored)";
+                }
+                m_clickCount = 0;
+            });
+        }
+        m_clickDecisionTimer->start();
+    } else if (m_clickCount >= 2) {
+        m_clickDecisionTimer->stop();
+        m_clickCount = 0;
+        selectNext();
+        Q_EMIT functionCycled();
+        qDebug() << "Double click -> next function";
+    }
 }
 
 void DialController::onWindowChanged(const QString &windowClass,
@@ -247,6 +270,8 @@ void DialController::updateCurrentFunction()
 
     // Update rotation handler with new actions
     m_rotationHandler->setCurrentActions(func.clockwiseAction, func.counterClockwiseAction);
+    // Query real system value for the new function
+    m_actionExecutor->queryCurrentValue(func.clockwiseAction.keys);
     m_rotationHandler->reset();
 
     Q_EMIT functionChanged();

@@ -22,14 +22,12 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    // Set application properties
     QApplication::setApplicationName(QStringLiteral("openwheel-gadget"));
     QApplication::setApplicationDisplayName(i18n("OpenWheel Gadget"));
     QApplication::setOrganizationDomain(QStringLiteral("openwheel.org"));
     QApplication::setApplicationVersion(QStringLiteral("0.1.0"));
 
 #ifndef NO_KDE_FRAMEWORKS
-    // Set KDE-specific application metadata
     KAboutData aboutData(
         QStringLiteral("openwheel-gadget"),
         i18n("OpenWheel Gadget"),
@@ -49,22 +47,29 @@ int main(int argc, char *argv[])
     KAboutData::setApplicationData(aboutData);
     QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("input-dial")));
 
-    // Ensure single instance
     KDBusService service(KDBusService::Unique);
 #else
     qDebug() << "Running without KDE Frameworks (limited features)";
 #endif
 
-    // Set QML style
 #ifndef NO_KDE_FRAMEWORKS
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
 #else
     QQuickStyle::setStyle(QStringLiteral("Fusion"));
 #endif
 
-    // Create the dial controller
+    // Create and initialize the dial controller
     DialController controller;
     controller.initialize();
+
+    // Load the overlay UI
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("dialController"), &controller);
+    engine.load(QUrl(QStringLiteral("qrc:/ui/OverlayWindow.qml")));
+
+    if (engine.rootObjects().isEmpty()) {
+        qWarning() << "Failed to load overlay QML";
+    }
 
     qDebug() << "============================================";
     qDebug() << "OpenWheel Gadget v0.1.0";

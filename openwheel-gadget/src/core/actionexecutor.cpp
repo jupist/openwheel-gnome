@@ -5,6 +5,7 @@
 #include <QProcess>
 #include <QDBusConnection>
 #include <QDBusMessage>
+#include <QDBusReply>
 #include <QDebug>
 #include <QThread>
 
@@ -20,8 +21,12 @@ QHash<QString, KeySym> ActionExecutor::s_keySymMap;
 ActionExecutor::ActionExecutor(QObject *parent)
     : QObject(parent)
 {
+    detectSession();
+
 #ifdef HAVE_X11
-    initializeX11();
+    if (!m_isWayland) {
+        initializeX11();
+    }
 #endif
 }
 
@@ -30,6 +35,13 @@ ActionExecutor::~ActionExecutor()
 #ifdef HAVE_X11
     cleanupX11();
 #endif
+}
+
+void ActionExecutor::detectSession()
+{
+    QString sessionType = qEnvironmentVariable("XDG_SESSION_TYPE");
+    m_isWayland = (sessionType == QStringLiteral("wayland"));
+    qDebug() << "Session type:" << sessionType << (m_isWayland ? "(Wayland)" : "(X11)");
 }
 
 void ActionExecutor::executeAction(const ActionConfig &action, int repeatCount)
@@ -58,7 +70,6 @@ void ActionExecutor::executeAction(const ActionConfig &action, int repeatCount)
                 break;
         }
 
-        // Small delay between repeats
         if (i < repeatCount - 1 && repeatCount > 1) {
             QThread::msleep(10);
         }
@@ -71,17 +82,139 @@ void ActionExecutor::executeKeyPress(const QString &keys, Qt::KeyboardModifiers 
         return;
     }
 
+    // On Wayland, try native D-Bus actions for well-known keys first
+    if (m_isWayland && tryWaylandKeyAction(keys, modifiers)) {
+        return;
+    }
+
 #ifdef HAVE_X11
     if (m_x11Available) {
-        sendKeyX11(keys, modifiers, true);   // Press
-        QThread::msleep(20);                 // Small delay
-        sendKeyX11(keys, modifiers, false);  // Release
+        sendKeyX11(keys, modifiers, true);
+        QThread::msleep(20);
+        sendKeyX11(keys, modifiers, false);
         XFlush(m_display);
     } else
 #endif
     {
-        qWarning() << "Keyboard simulation not available (X11 required)";
+        qWarning() << "Key simulation not available for:" << keys;
     }
+}
+
+bool ActionExecutor::tryWaylandKeyAction(const QString &keys, Qt::KeyboardModifiers modifiers)
+{
+    Q_UNUSED(modifiers);
+
+    // Media keys → native D-Bus calls
+    if (keys == QStringLiteral("XF86AudioRaiseVolume")) {
+        volumeChange(+1);
+        return true;
+    }
+    if (keys == QStringLiteral("XF86AudioLowerVolume")) {
+        volumeChange(-1);
+        return true;
+    }
+    if (keys == QStringLiteral("XF86AudioMute")) {
+        QProcess::startDetached(QStringLiteral("wpctl"),
+            {QStringLiteral("set-mute"), QStringLiteral("@DEFAULT_AUDIO_SINK@"), QStringLiteral("toggle")});
+        return true;
+    }
+    if (keys == QStringLiteral("XF86MonBrightnessUp")) {
+        brightnessChange(+1);
+        return true;
+    }
+    if (keys == QStringLiteral("XF86MonBrightnessDown")) {
+        brightnessChange(-1);
+        return true;
+    }
+
+    if (keys == QStringLiteral("ZoomIn")) {
+        zoomChange(+1);
+        return true;
+    }
+    if (keys == QStringLiteral("ZoomOut")) {
+        zoomChange(-1);
+        return true;
+    }
+
+    return false;
+}
+
+void ActionExecutor::volumeChange(int direction)
+{
+    QString step = (direction > 0) ? QStringLiteral("5%+") : QStringLiteral("5%-");
+    QProcess proc;
+    proc.start(QStringLiteral("wpctl"),
+        {QStringLiteral("set-volume"), QStringLiteral("-l"), QStringLiteral("1.0"),
+         QStringLiteral("@DEFAULT_AUDIO_SINK@"), step});
+    proc.waitForFinished(500);
+
+    // Read back actual volume
+    QProcess getVol;
+    getVol.start(QStringLiteral("wpctl"),
+        {QStringLiteral("get-volume"), QStringLiteral("@DEFAULT_AUDIO_SINK@")});
+    getVol.waitForFinished(500);
+    QString output = QString::fromUtf8(getVol.readAllStandardOutput()).trimmed();
+    // Format: "Volume: 0.75"
+    QStringList parts = output.split(QLatin1Char(' '));
+    if (parts.size() >= 2) {
+        qreal vol = parts.last().toDouble() * 100.0;
+        Q_EMIT systemValueChanged(vol, 0.0, 100.0);
+        qDebug() << "Volume:" << vol << "%";
+    }
+}
+
+void ActionExecutor::brightnessChange(int direction)
+{
+    // Use KDE PowerDevil D-Bus interface for brightness
+    auto bus = QDBusConnection::sessionBus();
+    QString service = QStringLiteral("org.kde.Solid.PowerManagement");
+    QString path = QStringLiteral("/org/kde/Solid/PowerManagement/Actions/BrightnessControl");
+    QString iface = QStringLiteral("org.kde.Solid.PowerManagement.Actions.BrightnessControl");
+
+    // Get current and max brightness
+    QDBusMessage getCurrent = QDBusMessage::createMethodCall(service, path, iface,
+        QStringLiteral("brightness"));
+    QDBusReply<int> currentReply = bus.call(getCurrent);
+
+    QDBusMessage getMax = QDBusMessage::createMethodCall(service, path, iface,
+        QStringLiteral("brightnessMax"));
+    QDBusReply<int> maxReply = bus.call(getMax);
+
+    if (!currentReply.isValid() || !maxReply.isValid()) {
+        qWarning() << "Failed to get brightness via PowerDevil";
+        return;
+    }
+
+    int current = currentReply.value();
+    int max = maxReply.value();
+    int step = qMax(1, max / 20);  // 5% steps
+    int newBrightness = qBound(0, current + (direction * step), max);
+
+    QDBusMessage setMsg = QDBusMessage::createMethodCall(service, path, iface,
+        QStringLiteral("setBrightness"));
+    setMsg << newBrightness;
+    bus.call(setMsg, QDBus::NoBlock);
+
+    qreal pct = (max > 0) ? (static_cast<qreal>(newBrightness) / max * 100.0) : 0.0;
+    Q_EMIT systemValueChanged(pct, 0.0, 100.0);
+    qDebug() << "Brightness:" << current << "->" << newBrightness << "/" << max;
+}
+
+void ActionExecutor::zoomChange(int direction)
+{
+    auto bus = QDBusConnection::sessionBus();
+    QString shortcut = (direction > 0) ? QStringLiteral("view_zoom_in")
+                                       : QStringLiteral("view_zoom_out");
+
+    QDBusMessage msg = QDBusMessage::createMethodCall(
+        QStringLiteral("org.kde.kglobalaccel"),
+        QStringLiteral("/component/kwin"),
+        QStringLiteral("org.kde.kglobalaccel.Component"),
+        QStringLiteral("invokeShortcut"));
+    msg << shortcut;
+    bus.call(msg, QDBus::NoBlock);
+
+    qDebug() << "Zoom:" << shortcut;
 }
 
 void ActionExecutor::executeMouseScroll(int delta, Qt::Orientation orientation)
@@ -90,11 +223,12 @@ void ActionExecutor::executeMouseScroll(int delta, Qt::Orientation orientation)
     if (m_x11Available) {
         sendMouseScrollX11(delta, orientation);
         XFlush(m_display);
-    } else
-#endif
-    {
-        qWarning() << "Mouse simulation not available (X11 required)";
+        return;
     }
+#endif
+    Q_UNUSED(delta);
+    Q_UNUSED(orientation);
+    qWarning() << "Mouse scroll simulation not available on Wayland without ydotool";
 }
 
 void ActionExecutor::executeDBusCall(const ActionConfig &action)
@@ -112,10 +246,43 @@ void ActionExecutor::executeDBusCall(const ActionConfig &action)
     );
 
     message.setArguments(action.dbusArgs);
-
     QDBusConnection::sessionBus().call(message, QDBus::NoBlock);
 
     qDebug() << "D-Bus call:" << action.dbusService << action.dbusMethod;
+}
+
+void ActionExecutor::queryCurrentValue(const QString &keys)
+{
+    if (keys == QStringLiteral("XF86AudioRaiseVolume") ||
+        keys == QStringLiteral("XF86AudioLowerVolume")) {
+        QProcess proc;
+        proc.start(QStringLiteral("wpctl"),
+            {QStringLiteral("get-volume"), QStringLiteral("@DEFAULT_AUDIO_SINK@")});
+        proc.waitForFinished(500);
+        QString output = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+        QStringList parts = output.split(QLatin1Char(' '));
+        if (parts.size() >= 2) {
+            qreal vol = parts.last().toDouble() * 100.0;
+            Q_EMIT systemValueChanged(vol, 0.0, 100.0);
+        }
+    } else if (keys == QStringLiteral("XF86MonBrightnessUp") ||
+               keys == QStringLiteral("XF86MonBrightnessDown")) {
+        auto bus = QDBusConnection::sessionBus();
+        QString service = QStringLiteral("org.kde.Solid.PowerManagement");
+        QString path = QStringLiteral("/org/kde/Solid/PowerManagement/Actions/BrightnessControl");
+        QString iface = QStringLiteral("org.kde.Solid.PowerManagement.Actions.BrightnessControl");
+
+        QDBusReply<int> current = bus.call(
+            QDBusMessage::createMethodCall(service, path, iface, QStringLiteral("brightness")));
+        QDBusReply<int> max = bus.call(
+            QDBusMessage::createMethodCall(service, path, iface, QStringLiteral("brightnessMax")));
+
+        if (current.isValid() && max.isValid() && max.value() > 0) {
+            qreal pct = static_cast<qreal>(current.value()) / max.value() * 100.0;
+            Q_EMIT systemValueChanged(pct, 0.0, 100.0);
+        }
+    }
+    // Zoom and Scroll have no queryable value — no action needed
 }
 
 void ActionExecutor::executeCommand(const QString &command)
@@ -138,7 +305,6 @@ void ActionExecutor::initializeX11()
         return;
     }
 
-    // Check for XTest extension
     int event_base, error_base, major, minor;
     if (!XTestQueryExtension(m_display, &event_base, &error_base, &major, &minor)) {
         qWarning() << "XTest extension not available";
@@ -149,9 +315,8 @@ void ActionExecutor::initializeX11()
     }
 
     m_x11Available = true;
-    qDebug() << "X11 input simulation initialized";
+    qDebug() << "X11 input simulation initialized (fallback)";
 
-    // Initialize key symbol map
     if (s_keySymMap.isEmpty()) {
         s_keySymMap[QStringLiteral("bracketleft")] = XK_bracketleft;
         s_keySymMap[QStringLiteral("[")] = XK_bracketleft;
@@ -176,17 +341,6 @@ void ActionExecutor::initializeX11()
         s_keySymMap[QStringLiteral("up")] = XK_Up;
         s_keySymMap[QStringLiteral("down")] = XK_Down;
         s_keySymMap[QStringLiteral("z")] = XK_z;
-        s_keySymMap[QStringLiteral("j")] = XK_j;
-        s_keySymMap[QStringLiteral("k")] = XK_k;
-        s_keySymMap[QStringLiteral("l")] = XK_l;
-        s_keySymMap[QStringLiteral("i")] = XK_i;
-        s_keySymMap[QStringLiteral("o")] = XK_o;
-        s_keySymMap[QStringLiteral("4")] = XK_4;
-        s_keySymMap[QStringLiteral("6")] = XK_6;
-        s_keySymMap[QStringLiteral("a")] = XK_a;
-        s_keySymMap[QStringLiteral("b")] = XK_b;
-        s_keySymMap[QStringLiteral("c")] = XK_c;
-        // Add more as needed...
     }
 }
 
@@ -204,13 +358,11 @@ void ActionExecutor::sendKeyX11(const QString &keys, Qt::KeyboardModifiers modif
         return;
     }
 
-    // Send modifiers first if pressing
     if (press) {
         sendModifiersX11(modifiers, true);
         QThread::msleep(10);
     }
 
-    // Send main key
     KeySym keysym = qtKeyToX11Keysym(keys);
     if (keysym != NoSymbol) {
         KeyCode keycode = XKeysymToKeycode(m_display, keysym);
@@ -223,7 +375,6 @@ void ActionExecutor::sendKeyX11(const QString &keys, Qt::KeyboardModifiers modif
         qWarning() << "No keysym found for key:" << keys;
     }
 
-    // Release modifiers if releasing
     if (!press) {
         QThread::msleep(10);
         sendModifiersX11(modifiers, false);
@@ -264,9 +415,7 @@ void ActionExecutor::sendMouseScrollX11(int delta, Qt::Orientation orientation)
         return;
     }
 
-    // X11 scroll wheel buttons: 4 = up, 5 = down, 6 = left, 7 = right
     unsigned int button;
-
     if (orientation == Qt::Vertical) {
         button = (delta > 0) ? 4 : 5;
     } else {
@@ -287,14 +436,14 @@ KeySym ActionExecutor::qtKeyToX11Keysym(const QString &key)
 {
     QString lowerKey = key.toLower();
 
-    // Check our map first
     if (s_keySymMap.contains(lowerKey)) {
         return s_keySymMap[lowerKey];
     }
 
-    // For single characters, try XStringToKeysym
-    if (key.length() == 1) {
-        return XStringToKeysym(key.toLatin1().data());
+    // XStringToKeysym handles standard X11 keysym names
+    KeySym sym = XStringToKeysym(key.toLatin1().data());
+    if (sym != NoSymbol) {
+        return sym;
     }
 
     return NoSymbol;

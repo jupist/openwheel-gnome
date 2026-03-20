@@ -5,8 +5,9 @@
 
 #include <QObject>
 #include <QVariantList>
-#include <memory>
-#include <array>
+#include <QScopedPointer>
+#include <QElapsedTimer>
+#include <QTimer>
 #include "../profiles/profile.h"
 
 class ProfileManager;
@@ -69,6 +70,7 @@ Q_SIGNALS:
     void valueChanged(qreal value);
     void adjustingChanged(int adjusting);
     void rotationTick();
+    void functionCycled();
 
 private Q_SLOTS:
     void onRotationChanged(int delta);
@@ -85,13 +87,18 @@ private:
     void updateCurrentFunction();
     QVariantMap functionToVariantMap(const Function &func) const;
 
-    std::unique_ptr<DBusInterface> m_dbusInterface;
-    std::unique_ptr<ProfileManager> m_profileManager;
-    std::unique_ptr<ApplicationMatcher> m_appMatcher;
-    std::unique_ptr<ActionExecutor> m_actionExecutor;
-    std::unique_ptr<RotationHandler> m_rotationHandler;
+    QScopedPointer<DBusInterface> m_dbusInterface;
+    QScopedPointer<ProfileManager> m_profileManager;
+    QScopedPointer<ApplicationMatcher> m_appMatcher;
+    QScopedPointer<ActionExecutor> m_actionExecutor;
+    QScopedPointer<RotationHandler> m_rotationHandler;
 
     int m_active = 0;
     int m_selectedIndex = 0;
     QString m_currentProfileId;
+
+    QElapsedTimer m_buttonClickTimer;
+    int m_clickCount = 0;
+    QTimer *m_clickDecisionTimer = nullptr;
+    static constexpr int DOUBLE_CLICK_INTERVAL = 400; // ms
 };

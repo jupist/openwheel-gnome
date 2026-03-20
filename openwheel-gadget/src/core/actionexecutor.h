@@ -12,7 +12,9 @@
 #endif
 
 /**
- * Executes actions by simulating keyboard and mouse events
+ * Executes actions by simulating keyboard and mouse events.
+ * Prefers Wayland-native mechanisms (D-Bus, wpctl, ydotool)
+ * and falls back to X11/XTest when running under X11.
  */
 class ActionExecutor : public QObject
 {
@@ -22,47 +24,37 @@ public:
     explicit ActionExecutor(QObject *parent = nullptr);
     ~ActionExecutor() override;
 
-    /**
-     * Execute an action configuration
-     */
     void executeAction(const ActionConfig &action, int repeatCount = 1);
-
-    /**
-     * Execute a keyboard press (and release)
-     */
     void executeKeyPress(const QString &keys, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
-
-    /**
-     * Execute mouse scroll
-     */
     void executeMouseScroll(int delta, Qt::Orientation orientation = Qt::Vertical);
-
-    /**
-     * Execute D-Bus call
-     */
     void executeDBusCall(const ActionConfig &action);
-
-    /**
-     * Execute shell command
-     */
     void executeCommand(const QString &command);
+    void queryCurrentValue(const QString &keys);
+
+Q_SIGNALS:
+    void systemValueChanged(qreal value, qreal minValue, qreal maxValue);
 
 private:
-    void initializeX11();
-    void cleanupX11();
+    void detectSession();
+
+    // Wayland-native key handling via well-known D-Bus actions
+    bool tryWaylandKeyAction(const QString &keys, Qt::KeyboardModifiers modifiers);
+    void volumeChange(int direction);
+    void brightnessChange(int direction);
+    void zoomChange(int direction);
 
 #ifdef HAVE_X11
+    void initializeX11();
+    void cleanupX11();
     void sendKeyX11(const QString &keys, Qt::KeyboardModifiers modifiers, int press);
     void sendModifiersX11(Qt::KeyboardModifiers modifiers, int press);
     void sendMouseScrollX11(int delta, Qt::Orientation orientation);
     KeySym qtKeyToX11Keysym(const QString &key);
-    Qt::Key parseKeyString(const QString &keyStr);
-#endif
 
-    int m_x11Available = 0;
-
-#ifdef HAVE_X11
     Display *m_display = nullptr;
     static QHash<QString, KeySym> s_keySymMap;
 #endif
+
+    bool m_isWayland = false;
+    int m_x11Available = 0;
 };
