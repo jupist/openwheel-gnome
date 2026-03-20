@@ -1,155 +1,125 @@
 # OpenWheel
 
-**OpenWheel** is a collection of tools designed to handle ASUS Dial and similar designware hardware under Linux. Whether you're a developer, hobbyist, or hardware enthusiast, OpenWheel provides a robust solution for utilizing and customizing the functionality of these devices on Linux systems.
+OpenWheel turns the ASUS Dial (and similar I2C/USB HID rotary devices) into a system-wide control dial on Linux. Rotate to adjust volume, brightness, or compositor zoom; double-click the button to switch functions. A floating overlay widget shows the current value in real time.
 
----
+## How It Works
 
-## Table of Contents
-- [Features](#features)
-- [Getting Started](#getting-started)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Compatibility](#compatibility)
-- [Contributing](#contributing)
-- [License](#license)
+```
+ASUS Dial HID (/dev/hidraw*)
+  → openwheel-daemon  (C, reads HID packets)
+  → D-Bus signals     (org.asus.dial: Rotate, Press)
+  → openwheel-gadget  (C++20/Qt 6, executes actions + shows overlay)
+```
 
----
+**openwheel-daemon** reads raw HID events and broadcasts rotation/button signals over the session D-Bus.
+
+**openwheel-gadget** listens on D-Bus, maps rotation to per-application actions, and displays a 3D dial overlay widget at the bottom of the screen.
 
 ## Features
 
-- **Comprehensive Support**: Works with ASUS Dial and a range of similar designware hardware.
-- **Customizable**: Offers flexibility for personalizing hardware functionality to suit your needs.
-- **Cross-Platform Development**: Built in C++ with modular components, ensuring efficient functionality.
-- **QML Interface**: Includes user-friendly graphical elements using QML.
-- **Lightweight and Modular**: Clean, efficient, and designed with modularity in mind.
+- **Wayland-native** — volume via PipeWire (`wpctl`), brightness via KDE PowerDevil, fullscreen zoom via KWin compositor (no X11 required)
+- **Per-application profiles** — auto-switches dial functions based on the active window (Blender, Krita, or custom JSON profiles)
+- **3D overlay widget** — two concentric circles with segmented gauge ring, Kirigami theme integration, spring/pulse animations
+- **Double-click to cycle** — button double-click switches between Volume, Brightness, Zoom, and Scroll
+- **X11 fallback** — XTest input simulation when running under X11
 
----
+## Prerequisites
 
-## Getting Started
+- CMake 3.16+
+- Qt 6 (Core, Gui, Widgets, Qml, Quick, QuickControls2, DBus)
+- KDE Frameworks 6 (optional — enables window tracking for auto profile switching)
+- D-Bus (`libdbus-1`)
+- X11 + XTest (optional — for X11 input simulation fallback)
 
-These instructions will guide you on how to set up and use OpenWheel on your Linux machine.
+## Build & Install
 
-### Prerequisites
-- **Linux Kernel**: Ensure your system is running a modern Linux kernel (v5.4 or later recommended).
-- **Development Tools**:
-  - A C++17 compatible compiler.
-  - CMake version 3.10 or newer.
-- **Libraries**:
-  - Qt (for systems requiring the QML graphical interface).
-  - libevdev: For handling input devices.
-
-To verify your system has these components, you can run:
 ```bash
-gcc --version
-cmake --version
+git clone https://github.com/fredaime/openwheel.git
+cd openwheel
+
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+
+# Run tests
+cd build && ctest --output-on-failure && cd ..
+
+# Install (default prefix: /usr/local)
+sudo cmake --install build
 ```
 
----
+Build options: `-DBUILD_DAEMON=ON`, `-DBUILD_GADGET=ON`, `-DBUILD_TESTS=ON`
 
-## Installation
+## Running
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/fredaime/openwheel.git
-   cd openwheel
-   ```
+The daemon needs read access to the HID device. Either run as root, or set up a udev rule:
 
-2. **Build the Project**:
-   ```bash
-   mkdir build
-   cd build
-   cmake ..
-   make
-   ```
+```bash
+# Option 1: temporary permission
+sudo chmod a+r /dev/hidraw*
 
-3. **Install**:
-   Install the compiled software:
-   ```bash
-   sudo make install
-   ```
+# Option 2: udev rule (persistent)
+echo 'SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0b05", MODE="0644"' | \
+  sudo tee /etc/udev/rules.d/99-openwheel.rules
+sudo udevadm control --reload-rules
+```
 
----
+Start both processes:
 
-## Usage
+```bash
+# Start the daemon (reads HID events, broadcasts D-Bus signals)
+asus_wheel &
 
-Once installed, OpenWheel can be used to interact with ASUS Dial hardware. Below are some basic commands and workflows:
+# Start the gadget (listens for signals, shows overlay)
+openwheel-gadget
+```
 
-1. **Detect Supported Hardware**:
-   ```bash
-   openwheel --detect
-   ```
+Rotate the dial to adjust the current function. Double-click the button to cycle through functions (Volume → Brightness → Zoom → Scroll).
 
-2. **Initialize a Device**:
-   ```bash
-   sudo openwheel --init
-   ```
+## Profiles
 
-3. **Customize Behavior**:
-   Edit configuration files or use the graphical interface:
-   ```bash
-   openwheel-gui
-   ```
+JSON profiles in `$XDG_DATA_DIRS/openwheel/profiles/` define per-application dial functions. Included profiles:
 
-4. **View Help**:
-   ```bash
-   openwheel --help
-   ```
+| Profile | Functions |
+|---------|-----------|
+| **System** (default) | Volume, Brightness, Zoom, Scroll |
+| **Blender** | Viewport zoom, Timeline scrub, Undo/Redo |
+| **Krita** | Brush size, Brush opacity, Canvas rotation, Zoom |
 
----
+Profiles match the active window by process name, window class regex, or window title regex.
 
-## Configuration
-
-OpenWheel is designed to be highly configurable. By default, it searches for configuration files under:
-`~/.config/openwheel/`
-
-### Example Configuration
-
-Here's an example configuration for setting up actions for the hardware:
+### Profile format
 
 ```json
 {
-  "device": "ASUS Dial",
-  "actions": [
-    {"wheel_action": "scroll", "speed": "fast"},
-    {"wheel_action": "zoom", "sensitivity": "medium"}
-  ]
+  "id": "my-app",
+  "displayName": "My App",
+  "processNames": ["myapp"],
+  "functions": [
+    {
+      "id": "volume",
+      "label": "Volume",
+      "iconName": "audio-volume-high",
+      "type": "continuous",
+      "minValue": 0, "maxValue": 100, "unit": "%",
+      "clockwiseAction": { "type": "keyboard", "keys": "XF86AudioRaiseVolume", "rotationThreshold": 5 },
+      "counterClockwiseAction": { "type": "keyboard", "keys": "XF86AudioLowerVolume", "rotationThreshold": 5 }
+    }
+  ],
+  "defaultMenuLayout": ["volume"]
 }
 ```
 
----
+Action types: `keyboard`, `mouseScroll`, `dbus`, `command`.
 
 ## Compatibility
 
-OpenWheel has been explicitly tested with:
-- **ASUS Dial**
-- Other Designware-compatible hardware
+Tested with:
+- ASUS Dial (I2C HID, `ASUS2020` device identifier)
+- KDE Plasma 6 on Wayland
+- PipeWire audio
 
-If your device isn't listed but shares similar hardware specifications, you can still attempt to use OpenWheel. For hardware-specific bug reports, create an issue on [GitHub](https://github.com/fredaime/openwheel/issues).
-
----
-
-## Contributing
-
-We welcome contributions from the community! Here's how you can help:
-1. Fork the repository.
-2. Create a new branch for your feature:
-   ```bash
-   git checkout -b feature-name
-   ```
-3. Make and test your changes.
-4. Submit a pull request.
-
-Please adhere to the [contribution guidelines](CONTRIBUTING.md).
-
----
+The daemon detects devices by scanning `/sys/class/hidraw/` for `ASUS2020` in either `device/product` (USB) or `device/uevent` (I2C).
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-This README provides a complete overview of OpenWheel. If you encounter any issues or have suggestions, feel free to contribute or open a discussion on our [GitHub Discussions](https://github.com/fredaime/openwheel/discussions).
-
-Happy Hacking!
+GPL-3.0-or-later. See [LICENSE](LICENSE).
