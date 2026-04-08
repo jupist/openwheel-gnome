@@ -1,6 +1,4 @@
-# This starter workflow is for a CMake project running on a single platform. There is a different starter workflow if you need cross-platform coverage.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-multi-platform.yml
-name: CMake on a single platform
+name: CI
 
 on:
   push:
@@ -8,32 +6,64 @@ on:
   pull_request:
     branches: [ "main" ]
 
-env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
-
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Primary target: GNOME/Wayland, no KDE Frameworks
+          - name: "GNOME (no KF6)"
+            kde: false
+
+          # Secondary target: KDE Plasma — optional KF6 features enabled
+          - name: "KDE (with KF6)"
+            kde: true
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      - name: Install base dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build build-essential pkg-config \
+            libdbus-1-dev \
+            qt6-base-dev qt6-declarative-dev \
+            libqt6opengl6-dev \
+            libx11-dev libxtst-dev
 
-    - name: Build
-      # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      - name: Install KDE Frameworks 6 dependencies
+        if: matrix.kde
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            extra-cmake-modules \
+            libkf6coreaddons-dev \
+            libkf6dbusaddons-dev \
+            libkf6i18n-dev
 
-    - name: Test
-      working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C ${{env.BUILD_TYPE}}
+      - name: Configure
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_DAEMON=ON \
+            -DBUILD_GADGET=ON \
+            -DBUILD_TESTS=ON
 
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Verify no KF6 symbols in GNOME build
+        if: "!matrix.kde"
+        run: |
+          # Confirm the gadget binary was NOT linked against KF6 libraries
+          if ldd build/bin/openwheel-gadget 2>/dev/null | grep -qi "KF6\|libKF6"; then
+            echo "ERROR: KF6 libraries found in GNOME build!" && exit 1
+          fi
+          echo "OK: no KF6 libraries in GNOME build"

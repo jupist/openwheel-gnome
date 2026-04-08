@@ -43,6 +43,11 @@ struct ActionConfig {
     // For commands
     QString command;
 
+    // Sticky modifier: hold modifier keys across consecutive rotations (e.g.
+    // Alt+Tab window switcher — Alt stays held while the user keeps rotating).
+    // The modifiers are released when the dial button is released.
+    bool sticky = false;
+
     static ActionConfig fromJson(const QJsonObject &json);
     QJsonObject toJson() const;
 };
@@ -95,6 +100,7 @@ public:
     QString windowClassPattern;        // Regex pattern
     QString windowTitlePattern;        // Regex pattern
     bool isDefault = false;            // Is this the default/fallback profile?
+    bool enabled = true;               // false = hidden from picker (but editable in settings)
 
     QVector<Function> functions;
     QVector<FunctionGroup> groups;
@@ -122,6 +128,7 @@ public:
     static Profile fromJson(const QJsonObject &json);
     static Profile fromFile(const QString &filePath);
     QJsonObject toJson() const;
+    bool saveToFile(const QString &filePath) const;
 
 private:
     mutable QRegularExpression m_windowClassRegex;

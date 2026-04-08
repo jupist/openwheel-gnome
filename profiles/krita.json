@@ -1,100 +1,79 @@
 {
   "id": "krita",
   "displayName": "Krita",
-  "processNames": ["krita", "krita.exe"],
-  "windowClassPattern": "^krita$",
-
+  "enabled": false,
+  "processNames": ["krita"],
+  "isDefault": false,
   "functions": [
     {
       "id": "brush-size",
       "label": "Brush Size",
       "iconName": "draw-brush",
       "type": "continuous",
-      "minValue": 1,
-      "maxValue": 1000,
-      "unit": "px",
-      "clockwiseAction": {
-        "type": "keyboardRepeat",
-        "keys": "bracketright",
-        "rotationThreshold": 15,
-        "accelerationEnabled": true
-      },
-      "counterClockwiseAction": {
-        "type": "keyboardRepeat",
-        "keys": "bracketleft",
-        "rotationThreshold": 15,
-        "accelerationEnabled": true
-      }
-    },
-    {
-      "id": "brush-opacity",
-      "label": "Brush Opacity",
-      "iconName": "layer-visible-on",
-      "type": "continuous",
       "minValue": 0,
       "maxValue": 100,
       "unit": "%",
       "clockwiseAction": {
-        "type": "keyboardRepeat",
-        "keys": "o",
-        "rotationThreshold": 25
+        "type": "keyboard",
+        "keys": "bracketright",
+        "rotationThreshold": 3
       },
       "counterClockwiseAction": {
-        "type": "keyboardRepeat",
-        "keys": "i",
-        "rotationThreshold": 25
+        "type": "keyboard",
+        "keys": "bracketleft",
+        "rotationThreshold": 3
       }
     },
     {
-      "id": "rotate-canvas",
-      "label": "Rotate Canvas",
-      "iconName": "transform-rotate",
-      "type": "continuous",
-      "unit": "°",
-      "clockwiseAction": {
-        "type": "keyboardRepeat",
-        "keys": "6",
-        "rotationThreshold": 10
-      },
-      "counterClockwiseAction": {
-        "type": "keyboardRepeat",
-        "keys": "4",
-        "rotationThreshold": 10
-      }
-    },
-    {
-      "id": "zoom",
-      "label": "Zoom",
-      "iconName": "zoom-in",
-      "type": "continuous",
-      "clockwiseAction": {
-        "type": "keyboardRepeat",
-        "keys": "plus",
-        "rotationThreshold": 20
-      },
-      "counterClockwiseAction": {
-        "type": "keyboardRepeat",
-        "keys": "minus",
-        "rotationThreshold": 20
-      }
-    },
-    {
-      "id": "undo",
+      "id": "undo-redo",
       "label": "Undo / Redo",
       "iconName": "edit-undo",
       "type": "discrete",
       "clockwiseAction": {
         "type": "keyboard",
         "keys": "z",
-        "modifiers": ["ctrl", "shift"]
+        "modifiers": ["ctrl", "shift"],
+        "rotationThreshold": 5
       },
       "counterClockwiseAction": {
         "type": "keyboard",
         "keys": "z",
-        "modifiers": ["ctrl"]
+        "modifiers": ["ctrl"],
+        "rotationThreshold": 5
+      }
+    },
+    {
+      "id": "zoom",
+      "label": "Zoom",
+      "iconName": "zoom-in",
+      "type": "discrete",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "ZoomIn",
+        "rotationThreshold": 5
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "ZoomOut",
+        "rotationThreshold": 5
+      }
+    },
+    {
+      "id": "scroll",
+      "label": "Scroll",
+      "iconName": "view-scroll-vertical",
+      "type": "discrete",
+      "clockwiseAction": {
+        "type": "mouseScroll",
+        "delta": -3,
+        "rotationThreshold": 3
+      },
+      "counterClockwiseAction": {
+        "type": "mouseScroll",
+        "delta": 3,
+        "rotationThreshold": 3
       }
     }
   ],
-
-  "defaultMenuLayout": ["brush-size", "brush-opacity", "zoom", "rotate-canvas", "undo"]
+  "defaultMenuLayout": ["brush-size", "undo-redo", "zoom", "scroll"]
 }

@@ -17,11 +17,17 @@ endif()
 set(DAEMON_SRCS
     hidreader.c
     helpers.c
+    keymap.c
+    uinput.c
+    dbus_methods.c
 )
 
 set(DAEMON_HEADERS
     openwheel.h
     helpers.h
+    keymap.h
+    uinput.h
+    dbus_methods.h
 )
 
 # Create executable
@@ -51,8 +57,23 @@ install(TARGETS asus_wheel
     COMPONENT daemon
 )
 
-# Install headers (for development)
-install(FILES ${DAEMON_HEADERS}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openwheel
-    COMPONENT daemon-dev
+
+# Install udev rule for /dev/uinput and ASUS Dial hidraw access.
+# Relative destination — CMake prepends CMAKE_INSTALL_PREFIX at install time,
+# so `cmake --install build --prefix /usr` → /usr/lib/udev/rules.d/
+install(FILES ${CMAKE_SOURCE_DIR}/udev/99-openwheel.rules
+    DESTINATION lib/udev/rules.d
+    COMPONENT daemon
+)
+
+# Generate and install the systemd user service from the template so that the
+# ExecStart path matches the configured CMAKE_INSTALL_FULL_BINDIR.
+configure_file(
+    ${CMAKE_SOURCE_DIR}/systemd/openwheel-daemon.service.in
+    ${CMAKE_CURRENT_BINARY_DIR}/openwheel-daemon.service
+    @ONLY
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/openwheel-daemon.service
+    DESTINATION lib/systemd/user
+    COMPONENT daemon
 )

@@ -1,79 +1,117 @@
 {
-  "id": "system-default",
-  "displayName": "System",
-  "processNames": [],
-  "isDefault": true,
-  "functions": [
-    {
-      "id": "volume",
-      "label": "Volume",
-      "iconName": "audio-volume-high",
-      "type": "continuous",
-      "minValue": 0,
-      "maxValue": 100,
-      "unit": "%",
-      "clockwiseAction": {
-        "type": "keyboard",
-        "keys": "XF86AudioRaiseVolume",
-        "rotationThreshold": 5
-      },
-      "counterClockwiseAction": {
-        "type": "keyboard",
-        "keys": "XF86AudioLowerVolume",
-        "rotationThreshold": 5
-      }
-    },
-    {
-      "id": "brightness",
-      "label": "Brightness",
-      "iconName": "display-brightness",
-      "type": "continuous",
-      "minValue": 0,
-      "maxValue": 100,
-      "unit": "%",
-      "clockwiseAction": {
-        "type": "keyboard",
-        "keys": "XF86MonBrightnessUp",
-        "rotationThreshold": 5
-      },
-      "counterClockwiseAction": {
-        "type": "keyboard",
-        "keys": "XF86MonBrightnessDown",
-        "rotationThreshold": 5
-      }
-    },
-    {
-      "id": "zoom",
-      "label": "Zoom",
-      "iconName": "zoom-in",
-      "type": "discrete",
-      "clockwiseAction": {
-        "type": "keyboard",
-        "keys": "ZoomIn",
-        "rotationThreshold": 5
-      },
-      "counterClockwiseAction": {
-        "type": "keyboard",
-        "keys": "ZoomOut",
-        "rotationThreshold": 5
-      }
-    },
-    {
-      "id": "scroll",
-      "label": "Scroll",
-      "iconName": "view-scroll-vertical",
-      "type": "discrete",
-      "clockwiseAction": {
-        "type": "mouseScroll",
-        "delta": -3,
-        "rotationThreshold": 3
-      },
-      "counterClockwiseAction": {
-        "type": "mouseScroll",
-        "delta": 3,
-        "rotationThreshold": 3
-      }
-    }
-  ],
-  "defaultMenuLayout": ["volume", "brightness", "zoom", "scroll"]
+    "id": "system-default",
+    "displayName": "System",
+    "processNames": [],
+    "isDefault": true,
+    "functions": [
+        {
+            "id": "volume",
+            "label": "Volume",
+            "iconName": "audio-volume-high",
+            "type": "continuous",
+            "minValue": 0,
+            "maxValue": 100,
+            "unit": "%",
+            "clockwiseAction": {
+                "type": "keyboard",
+                "keys": "XF86AudioRaiseVolume",
+                "rotationThreshold": 1
+            },
+            "counterClockwiseAction": {
+                "type": "keyboard",
+                "keys": "XF86AudioLowerVolume",
+                "rotationThreshold": 1
+            }
+        },
+        {
+            "id": "brightness",
+            "label": "Brightness",
+            "iconName": "display-brightness",
+            "type": "continuous",
+            "minValue": 0,
+            "maxValue": 100,
+            "unit": "%",
+            "clockwiseAction": {
+                "type": "keyboard",
+                "keys": "XF86MonBrightnessUp",
+                "rotationThreshold": 1
+            },
+            "counterClockwiseAction": {
+                "type": "keyboard",
+                "keys": "XF86MonBrightnessDown",
+                "rotationThreshold": 1
+            }
+        },
+        {
+            "id": "zoom",
+            "label": "Zoom",
+            "iconName": "zoom-in",
+            "type": "discrete",
+            "clockwiseAction": {
+                "type": "keyboard",
+                "keys": "ZoomIn",
+                "rotationThreshold": 1
+            },
+            "counterClockwiseAction": {
+                "type": "keyboard",
+                "keys": "ZoomOut",
+                "rotationThreshold": 1
+            }
+        },
+        {
+            "id": "scroll",
+            "label": "Scroll",
+            "iconName": "view-scroll-vertical",
+            "type": "discrete",
+            "clockwiseAction": {
+                "type": "mouseScroll",
+                "delta": -1,
+                "rotationThreshold": 1
+            },
+            "counterClockwiseAction": {
+                "type": "mouseScroll",
+                "delta": 1,
+                "rotationThreshold": 1
+            }
+        },
+        {
+            "id": "window-switcher",
+            "label": "Windows",
+            "iconName": "window-switcher",
+            "type": "discrete",
+            "clockwiseAction": {
+                "type": "keyboard",
+                "keys": "tab",
+                "modifiers": [
+                    "alt"
+                ],
+                "sticky": true,
+                "rotationThreshold": 1
+            },
+            "counterClockwiseAction": {
+                "type": "keyboard",
+                "keys": "tab",
+                "modifiers": [
+                    "alt",
+                    "shift"
+                ],
+                "sticky": true,
+                "rotationThreshold": 1
+            },
+            "clickAction": {
+                "type": "keyboard",
+                "keys": "tab",
+                "modifiers": [
+                    "alt"
+                ]
+            }
+        }
+    ],
+    "defaultMenuLayout": [
+        "volume",
+        "brightness",
+        "zoom",
+        "scroll",
+        "window-switcher"
+    ]
 }

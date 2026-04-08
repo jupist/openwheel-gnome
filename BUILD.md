@@ -1,314 +1,182 @@
-# OpenWheel Build System
+# OpenWheel — Build & Install Guide
 
-This document describes the build system, testing infrastructure, and installation targets for the OpenWheel project.
-
-## Build System Overview
-
-OpenWheel uses CMake as its build system with support for:
-- **Multi-component builds**: Daemon and gadget can be built independently
-- **Flexible configuration**: Build options to customize what gets built
-- **Testing infrastructure**: CTest integration for automated testing
-- **Comprehensive installation**: Install targets for binaries, data, and development files
-
-## Prerequisites
+## Dependencies
 
 ### Required
-- CMake 3.16 or newer
-- C11 compiler (for openwheel-daemon)
-- C++20 compiler (for openwheel-gadget)
-- pkg-config
-- DBus development libraries
 
-### For Gadget Component
-- Qt5 (5.15+) or Qt6
-- Qt modules: Core, Gui, Widgets, Qml, Quick, DBus
+| Package | Fedora | Ubuntu/Debian | Arch |
+|---|---|---|---|
+| CMake 3.16+ | `cmake` | `cmake` | `cmake` |
+| C/C++20 compiler | `gcc-c++` | `build-essential` | `base-devel` |
+| pkg-config | `pkgconf` | `pkg-config` | `pkgconf` |
+| libdbus-1 | `dbus-devel` | `libdbus-1-dev` | `dbus` |
+| Qt 6 Core/Gui/Widgets/DBus | `qt6-qtbase-devel` | `qt6-base-dev` | `qt6-base` |
+| Qt 6 Qml/Quick/Controls2 | `qt6-qtdeclarative-devel` | `qt6-declarative-dev` | `qt6-declarative` |
 
 ### Optional
-- KDE Frameworks 6 (for enhanced features)
-- X11 with XTest (for keyboard/mouse simulation)
 
-## Build Options
-
-The following CMake options control the build:
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `BUILD_DAEMON` | ON | Build the openwheel-daemon component |
-| `BUILD_GADGET` | ON | Build the openwheel-gadget component |
-| `BUILD_TESTS` | ON | Build and enable tests |
-| `ENABLE_INSTALL` | ON | Enable installation targets |
-| `CMAKE_BUILD_TYPE` | Release | Build type (Debug, Release, RelWithDebInfo, MinSizeRel) |
+| Package | Purpose |
+|---|---|
+| `libX11-devel` + `libXtst-devel` | X11 XTest fallback (X11 sessions only) |
+| KDE Frameworks 6 (`extra-cmake-modules`, `libkf6coreaddons-dev`, `libkf6dbusaddons-dev`, `libkf6i18n-dev`) | Single-instance guard on KDE |
 
 ## Building
 
-### Standard Build
+```bash
+# Configure (from repo root)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+# Build everything
+cmake --build build -j$(nproc)
+
+# Run unit tests
+cd build && ctest --output-on-failure && cd ..
+```
+
+### Build options
+
+| Option | Default | Description |
+|---|---|---|
+| `BUILD_DAEMON` | ON | Build `asus_wheel` daemon |
+| `BUILD_GADGET` | ON | Build `openwheel-gadget` Qt app |
+| `BUILD_TESTS` | ON | Build CTest suite |
+| `CMAKE_BUILD_TYPE` | Release | Debug / Release / RelWithDebInfo |
+
+### Faster builds with Ninja
 
 ```bash
-# Create build directory
-mkdir build
-cd build
-
-# Configure
-cmake ..
-
-# Build
-make -j$(nproc)
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 ```
 
-### Build with Custom Options
+## Installing
+
+Install to `/usr` so that udev rules and systemd unit end up in the standard locations udev and systemd scan by default:
 
 ```bash
-# Build only the daemon
-cmake -DBUILD_GADGET=OFF ..
-make
-
-# Build with debug symbols
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-make
-
-# Build without tests
-cmake -DBUILD_TESTS=OFF ..
-make
-
-# Custom install prefix
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-make
+sudo cmake --install build --prefix /usr
 ```
 
-### Out-of-source Build (Recommended)
+What gets installed:
+
+| Path | Contents |
+|---|---|
+| `/usr/bin/asus_wheel` | Daemon executable |
+| `/usr/bin/openwheel-gadget` | Gadget executable |
+| `/usr/share/openwheel/profiles/` | Bundled JSON profiles |
+| `/usr/share/applications/openwheel-gadget.desktop` | App menu entry |
+| `/etc/xdg/autostart/openwheel-gadget.desktop` | Gadget autostart on login |
+| `/usr/lib/udev/rules.d/99-openwheel.rules` | Device access rules |
+| `/usr/lib/systemd/user/openwheel-daemon.service` | Daemon systemd user service |
+
+### Local install (no root)
 
 ```bash
-# From project root
-mkdir -p build/release
-cd build/release
-cmake ../..
-make -j$(nproc)
+cmake --install build --prefix ~/.local
+# udev and systemd files need to be copied manually:
+sudo cp udev/99-openwheel.rules /etc/udev/rules.d/
+sudo udevadm control --reload && sudo udevadm trigger
+mkdir -p ~/.config/systemd/user
+cp build/openwheel-daemon/openwheel-daemon.service ~/.config/systemd/user/
+# Edit ExecStart in the service file to point to ~/.local/bin/asus_wheel
 ```
 
-## Testing
+## Device access (one-time setup)
 
-The project uses CTest for testing infrastructure.
-
-### Running Tests
+The daemon needs read access to the ASUS Dial (`/dev/hidraw*`) and write access to `/dev/uinput` for keystroke injection.
 
 ```bash
-# From build directory
-ctest
+# 1. Apply udev rules (already done if you installed with --prefix /usr)
+sudo udevadm control --reload
+sudo udevadm trigger
 
-# Verbose output
-ctest -V
+# 2. Add your user to the input group
+sudo usermod -aG input $USER
 
-# Run specific test
-ctest -R daemon_executable_exists
-
-# Run tests in parallel
-ctest -j$(nproc)
+# 3. Log out and back in for the group change to take effect
 ```
 
-### Available Tests
-
-- `check_build_outputs` - Verifies build completed successfully
-- `daemon_executable_exists` - Checks daemon binary exists (if built)
-- `gadget_executable_exists` - Checks gadget binary exists (if built)
-- `version_test` - Validates project version
-- `config_summary` - Displays build configuration
-
-## Installation
-
-### Installation Targets
-
-The project provides component-based installation:
-
-| Component | Description | Files |
-|-----------|-------------|-------|
-| `daemon` | Daemon executable | `asus_wheel` binary |
-| `daemon-dev` | Daemon headers | Development headers |
-| `gadget` | Gadget executable | `openwheel-gadget` binary |
-| `gadget-dev` | Gadget headers | Development headers |
-| `data` | Data files | Profiles, desktop files, icons |
-
-### Install Commands
+Verify access:
 
 ```bash
-# Install everything
-sudo make install
-
-# Install specific component
-sudo cmake --install . --component daemon
-sudo cmake --install . --component gadget
-sudo cmake --install . --component data
-
-# Install to custom prefix
-cmake -DCMAKE_INSTALL_PREFIX=$HOME/.local ..
-make install  # No sudo needed
+groups | grep input       # should list 'input'
+ls -l /dev/uinput         # should show group 'input' with rw permission
 ```
 
-### Installation Paths
-
-Default installation paths (with `/usr/local` prefix):
-
-- **Binaries**: `/usr/local/bin/`
-  - `asus_wheel` (daemon)
-  - `openwheel-gadget` (gadget)
-- **Headers**: `/usr/local/include/openwheel/`
-- **Data files**: `/usr/local/share/openwheel/`
-- **Desktop files**: `/usr/local/share/applications/`
-- **Icons**: `/usr/local/share/icons/hicolor/128x128/apps/`
-
-## Build Artifacts
-
-Build outputs are organized in the build directory:
-
-```
-build/
-├── bin/              # Executables
-│   ├── asus_wheel
-│   └── openwheel-gadget
-├── lib/              # Libraries (if any)
-└── Testing/          # CTest output
-```
-
-## Common Build Tasks
-
-### Clean Build
+## Enabling autostart
 
 ```bash
-# Remove build directory
-rm -rf build
+# Enable the daemon as a systemd user service
+systemctl --user enable --now openwheel-daemon
 
-# Recreate and build
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
+# Check status
+systemctl --user status openwheel-daemon
+
+# View daemon logs
+journalctl --user -u openwheel-daemon -f
 ```
 
-### Rebuild After Changes
+The gadget autostarts via `/etc/xdg/autostart/openwheel-gadget.desktop` on next login. To start it now without logging out:
 
 ```bash
-# From build directory
-make clean
-make -j$(nproc)
+openwheel-gadget &
 ```
 
-### Update CMake Configuration
+## Smoke tests (manual, not in ctest)
+
+These tests need real hardware or a running daemon:
 
 ```bash
-# From build directory
-cmake ..
-make -j$(nproc)
+# Build smoke tests
+cmake --build build --target smoke_brightness smoke_profiles smoke_settings smoke_zoom
+
+# Profile CRUD (no hardware needed)
+./build/bin/smoke_settings
+
+# Profile loading and switching
+./build/bin/smoke_profiles
+
+# Brightness control (requires running daemon + display)
+./build/bin/smoke_brightness
+
+# Zoom keystrokes (requires focused window)
+./build/bin/smoke_zoom
 ```
 
 ## Troubleshooting
 
-### Missing Dependencies
+### Gadget shows "Wayland scroll not available"
 
-If CMake reports missing dependencies:
-
-```bash
-# Ubuntu/Debian
-sudo apt-get install cmake build-essential pkg-config libdbus-1-dev
-sudo apt-get install qt6-base-dev qt6-declarative-dev  # For Qt6
-sudo apt-get install libx11-dev libxtst-dev  # For X11 support
-
-# Fedora
-sudo dnf install cmake gcc-c++ pkg-config dbus-devel
-sudo dnf install qt6-qtbase-devel qt6-qtdeclarative-devel
-sudo dnf install libX11-devel libXtst-devel
-
-# Arch
-sudo pacman -S cmake base-devel pkg-config dbus
-sudo pacman -S qt6-base qt6-declarative
-sudo pacman -S libx11 libxtst
-```
-
-### Qt Version Issues
-
-If both Qt5 and Qt6 are installed and you want to use a specific version:
+The daemon is not running or is not reachable on D-Bus. Check:
 
 ```bash
-# Force Qt6
-cmake -DQT_VERSION_MAJOR=6 ..
-
-# Force Qt5
-cmake -DQT_VERSION_MAJOR=5 ..
+systemctl --user status openwheel-daemon
+gdbus introspect --session --dest org.asus.dial --object-path /org/asus/dial
 ```
 
-### Build Warnings
-
-To enable additional compiler warnings:
+### Dial not detected
 
 ```bash
-cmake -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic" ..
-make
+# Check kernel recognises the device
+dmesg | grep -i "asus\|hidraw" | tail -20
+
+# List hidraw devices
+ls -la /dev/hidraw*
+
+# Verify udev rule applied
+udevadm info --query=property --name=/dev/hidraw0 | grep -i "asus\|uaccess\|input"
 ```
 
-## Development Workflow
+### Brightness not changing on GNOME
 
-### Making Changes
-
-1. Make code changes
-2. Rebuild: `make -j$(nproc)`
-3. Run tests: `ctest`
-4. Install locally: `make install DESTDIR=/tmp/openwheel-test`
-
-### Adding Tests
-
-1. Add test to `tests/CMakeLists.txt`
-2. Reconfigure: `cmake ..`
-3. Build and test: `make && ctest`
-
-## Build System Maintenance
-
-### Updating Version
-
-Edit `CMakeLists.txt` and update the version:
-
-```cmake
-project(openwheel VERSION 0.2.0 LANGUAGES C CXX)
-```
-
-### Adding Build Options
-
-Add to root `CMakeLists.txt`:
-
-```cmake
-option(NEW_FEATURE "Enable new feature" OFF)
-```
-
-### Adding Dependencies
-
-Add to component's `CMakeLists.txt`:
-
-```cmake
-find_package(NewLib REQUIRED)
-target_link_libraries(target_name PRIVATE NewLib::NewLib)
-```
-
-## Performance Considerations
-
-- Use parallel builds: `make -j$(nproc)`
-- Use Ninja for faster builds: `cmake -G Ninja ..`
-- Enable ccache: `cmake -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ..`
-- Use LTO for smaller binaries: `cmake -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON ..`
-
-## Continuous Integration
-
-For CI/CD pipelines:
+OpenWheel uses `org.freedesktop.login1.Session.SetBrightness` (logind). Verify logind has a backlight device:
 
 ```bash
-# Configure with all checks
-cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON ..
-
-# Build with verbose output
-make VERBOSE=1
-
-# Run tests with output
-ctest --output-on-failure
-
-# Install to staging directory
-make install DESTDIR=staging
+ls /sys/class/backlight/
 ```
 
----
+If empty, your system may use ACPI brightness controls not exposed through sysfs. Try `brightnessctl list` and file a bug if the device is missing.
 
-For more information, see the main [README.md](README.md) or visit the [project repository](https://github.com/fredaime/openwheel).
+### Settings window doesn't open
+
+The gadget must be running. Look for the tray icon. If the system tray is not available (some GNOME configurations), open settings via the profile picker: long-press the dial, then — currently — use `gdbus` to call `dialController.openSettings()` directly, or add the GNOME AppIndicator extension.

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# openwheel-daemon systemd user service
+#
+# Install system-wide: sudo cmake --install build --prefix /usr
+# Then enable for your user:
+#   systemctl --user enable --now openwheel-daemon
+#
+# The daemon requires /dev/hidraw* and /dev/uinput access.
+# Ensure the udev rule is loaded first:
+#   sudo cp udev/99-openwheel.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload && sudo udevadm trigger
+#   sudo usermod -aG input $USER   # log out and back in
+
+[Unit]
+Description=OpenWheel Dial Daemon
+Documentation=https://github.com/jupist/openwheel-gnome
+# Start after the graphical session is ready (session D-Bus available)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/asus_wheel
+Restart=on-failure
+RestartSec=3s
+# Give the daemon enough time to register on D-Bus before the gadget starts
+ExecStartPost=/bin/sleep 1
+
+[Install]
+WantedBy=graphical-session.target

@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: 2025 OpenWheel Contributors
 
 #include "profile.h"
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QDebug>
@@ -67,6 +69,9 @@ ActionConfig ActionConfig::fromJson(const QJsonObject &json)
     // Command
     config.command = json[QStringLiteral("command")].toString();
 
+    // Sticky modifier (hold modifiers across rotations)
+    config.sticky = json[QStringLiteral("sticky")].toBool(false);
+
     return config;
 }
 
@@ -117,6 +122,10 @@ QJsonObject ActionConfig::toJson() const
 
     if (type == Type::Command) {
         json[QStringLiteral("command")] = command;
+    }
+
+    if (sticky) {
+        json[QStringLiteral("sticky")] = true;
     }
 
     return json;
@@ -179,6 +188,7 @@ QJsonObject Function::toJson() const
 
     json[QStringLiteral("clockwiseAction")] = clockwiseAction.toJson();
     json[QStringLiteral("counterClockwiseAction")] = counterClockwiseAction.toJson();
+    json[QStringLiteral("clickAction")] = clickAction.toJson();
 
     return json;
 }
@@ -317,6 +327,7 @@ Profile Profile::fromJson(const QJsonObject &json)
     profile.windowClassPattern = json[QStringLiteral("windowClassPattern")].toString();
     profile.windowTitlePattern = json[QStringLiteral("windowTitlePattern")].toString();
     profile.isDefault = json[QStringLiteral("isDefault")].toBool(false);
+    profile.enabled = json[QStringLiteral("enabled")].toBool(true);
 
     QJsonArray procArray = json[QStringLiteral("processNames")].toArray();
     for (const auto &proc : procArray) {
@@ -372,6 +383,7 @@ QJsonObject Profile::toJson() const
     json[QStringLiteral("windowClassPattern")] = windowClassPattern;
     json[QStringLiteral("windowTitlePattern")] = windowTitlePattern;
     json[QStringLiteral("isDefault")] = isDefault;
+    if (!enabled) json[QStringLiteral("enabled")] = false;
 
     QJsonArray procArray;
     for (const auto &proc : processNames) {
@@ -400,4 +412,25 @@ QJsonObject Profile::toJson() const
     json[QStringLiteral("defaultFunctionId")] = defaultFunctionId;
 
     return json;
+}
+
+bool Profile::saveToFile(const QString &filePath) const
+{
+    QFileInfo info(filePath);
+    QDir dir = info.dir();
+    if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
+        qWarning() << "Failed to create directory:" << dir.path();
+        return false;
+    }
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        qWarning() << "Failed to open profile file for writing:" << filePath;
+        return false;
+    }
+
+    QJsonDocument doc(toJson());
+    file.write(doc.toJson(QJsonDocument::Indented));
+    qDebug() << "Saved profile to:" << filePath;
+    return true;
 }

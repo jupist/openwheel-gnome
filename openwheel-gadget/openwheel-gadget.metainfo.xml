@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>openwheel-gadget</id>
+  <name>OpenWheel</name>
+  <summary>Creative dial controller for the ASUS ProArt Dial</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <description>
+    <p>
+      OpenWheel is a Wayland-native driver and overlay UI for the ASUS ProArt Dial —
+      the rotary input device built into ProArt Studiobook laptops. It works on
+      GNOME and KDE Plasma without requiring X11, ydotool, or root access.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Floating HUD overlay showing the current function and value</li>
+      <li>Per-application profiles (system, music, workspaces, Blender, Krita)</li>
+      <li>Press-to-activate mode: actions only fire while the button is held</li>
+      <li>Window switcher with sticky Alt+Tab via long-press and rotation</li>
+      <li>Volume and brightness via PipeWire/logind — no polling</li>
+      <li>Settings window to remap functions without editing JSON</li>
+      <li>All keystrokes injected via /dev/uinput — works on any Wayland compositor</li>
+    </ul>
+  </description>
+
+  <url type="homepage">https://github.com/jupist/openwheel-gnome</url>
+  <url type="bugtracker">https://github.com/jupist/openwheel-gnome/issues</url>
+
+  <categories>
+    <category>Utility</category>
+    <category>HardwareSettings</category>
+  </categories>
+
+  <keywords>
+    <keyword>dial</keyword>
+    <keyword>asus</keyword>
+    <keyword>proart</keyword>
+    <keyword>input</keyword>
+    <keyword>controller</keyword>
+    <keyword>wayland</keyword>
+  </keywords>
+
+  <provides>
+    <binary>openwheel-gadget</binary>
+  </provides>
+
+  <releases>
+    <release version="0.1.0" date="2026-04-08">
+      <description>
+        <p>Initial public release.</p>
+        <ul>
+          <li>Wayland-native uinput injection</li>
+          <li>Press-to-activate mode</li>
+          <li>Profile picker with long-press</li>
+          <li>Music, Workspaces, Blender, Krita bundled profiles</li>
+          <li>Settings window with enable/disable per profile</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+</component>

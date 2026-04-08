@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# udev rules for openwheel-daemon
+#
+# 1. Allow members of the `input` group to read the ASUS Dial HID device.
+# 2. Allow members of the `input` group to write to /dev/uinput so the
+#    daemon can create a virtual input device for keystroke / scroll
+#    injection on Wayland.
+#
+# Install: copy to /etc/udev/rules.d/99-openwheel.rules and run
+#   sudo udevadm control --reload && sudo udevadm trigger
+# Then ensure your user is in the `input` group:
+#   sudo usermod -aG input $USER
+# Log out and back in for the group change to take effect.
+
+# ASUS ProArt Dial (ASUS2020) — match by HID name regardless of bus.
+KERNEL=="hidraw*", ATTRS{name}=="*ASUS2020*", MODE="0660", GROUP="input", TAG+="uaccess"
+
+# /dev/uinput — required for synthetic input event injection.
+KERNEL=="uinput", MODE="0660", GROUP="input", TAG+="uaccess", OPTIONS+="static_node=uinput"

@@ -7,48 +7,45 @@
 #include <QString>
 
 /**
- * Detects the currently active application window and emits signals
- * when it changes. Uses KWindowSystem for window information.
+ * Previously detected the active application window via KWindowSystem.
+ * Auto window detection has been dropped in favour of manual profile
+ * selection (long-press the dial → rotate to pick a profile → click to
+ * confirm). This class is kept as a stub that exposes the same interface
+ * so the rest of the code does not need changing.
+ *
+ * If HAVE_KF6 is defined at build time (KDE Plasma), the KWindowSystem
+ * path can be re-enabled in a future revision.
  */
 class ApplicationMatcher : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(QString currentWindowClass READ currentWindowClass NOTIFY windowChanged)
-    Q_PROPERTY(QString currentWindowName READ currentWindowName NOTIFY windowChanged)
-    Q_PROPERTY(QString currentProcessName READ currentProcessName NOTIFY windowChanged)
 
 public:
     explicit ApplicationMatcher(QObject *parent = nullptr);
     ~ApplicationMatcher() override;
 
-    QString currentWindowClass() const { return m_currentWindowClass; }
-    QString currentWindowName() const { return m_currentWindowName; }
-    QString currentProcessName() const { return m_currentProcessName; }
-
-    /**
-     * Start monitoring window changes
-     */
+    // Lifecycle — kept for API compatibility; no-ops on GNOME.
     void startMonitoring();
-
-    /**
-     * Stop monitoring window changes
-     */
     void stopMonitoring();
 
+    // Programmatic override: switch to a named profile ID.
+    // Emits windowChanged with empty class/title so DialController
+    // treats it as a manual switch rather than an auto-detected one.
+    void setCurrentProfileById(const QString &profileId);
+
 Q_SIGNALS:
+    // Emitted when the active application changes (KDE) or when the user
+    // manually selects a profile (GNOME manual mode).
+    // profileId carries the target profile when set via setCurrentProfileById();
+    // on KDE it remains empty and class/name are used for matching.
     void windowChanged(const QString &windowClass,
                        const QString &windowName,
                        const QString &processName);
 
-private Q_SLOTS:
-    void onActiveWindowChanged();
+    // Emitted only by setCurrentProfileById() — a direct profile ID jump
+    // that bypasses pattern matching in ProfileManager.
+    void profileIdRequested(const QString &profileId);
 
 private:
-    QString getProcessName(int pid) const;
-    void updateCurrentWindow();
-
-    QString m_currentWindowClass;
-    QString m_currentWindowName;
-    QString m_currentProcessName;
-    int m_monitoring = 0;
+    bool m_monitoring = false;
 };

@@ -17,6 +17,67 @@ target_include_directories(test_rotation PRIVATE
 target_link_libraries(test_rotation PRIVATE Qt6::Core Qt6::Test Qt6::Gui)
 add_test(NAME test_rotation COMMAND test_rotation)
 
+# Brightness backend smoke test (manual — not registered with ctest because
+# it touches real hardware). Build with `cmake --build build --target smoke_brightness`.
+find_package(Qt6 COMPONENTS DBus QUIET)
+if(Qt6DBus_FOUND)
+    add_executable(smoke_brightness EXCLUDE_FROM_ALL
+        smoke_brightness.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/core/actionexecutor.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/core/desktopenvironment.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/profiles/profile.cpp
+    )
+    target_include_directories(smoke_brightness PRIVATE
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src
+    )
+    target_link_libraries(smoke_brightness PRIVATE
+        Qt6::Core Qt6::Gui Qt6::DBus
+    )
+    if(HAVE_X11)
+        target_compile_definitions(smoke_brightness PRIVATE HAVE_X11)
+        target_link_libraries(smoke_brightness PRIVATE ${X11_LIBRARIES} ${X11_XTest_LIB})
+    endif()
+
+    # Profile management smoke test
+    add_executable(smoke_profiles EXCLUDE_FROM_ALL
+        smoke_profiles.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/profiles/profilemanager.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/profiles/profile.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/profiles/applicationmatcher.cpp
+    )
+    target_include_directories(smoke_profiles PRIVATE
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src
+    )
+    target_link_libraries(smoke_profiles PRIVATE Qt6::Core Qt6::Gui Qt6::DBus)
+
+    # M4 settings / profile CRUD smoke test
+    add_executable(smoke_settings EXCLUDE_FROM_ALL
+        smoke_settings.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/profiles/profilemanager.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/profiles/profile.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/profiles/applicationmatcher.cpp
+    )
+    target_include_directories(smoke_settings PRIVATE
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src
+    )
+    target_link_libraries(smoke_settings PRIVATE Qt6::Core Qt6::Gui Qt6::DBus)
+
+    add_executable(smoke_zoom EXCLUDE_FROM_ALL
+        smoke_zoom.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/core/actionexecutor.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/core/desktopenvironment.cpp
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src/profiles/profile.cpp
+    )
+    target_include_directories(smoke_zoom PRIVATE
+        ${CMAKE_SOURCE_DIR}/openwheel-gadget/src
+    )
+    target_link_libraries(smoke_zoom PRIVATE Qt6::Core Qt6::Gui Qt6::DBus)
+    if(HAVE_X11)
+        target_compile_definitions(smoke_zoom PRIVATE HAVE_X11)
+        target_link_libraries(smoke_zoom PRIVATE ${X11_LIBRARIES} ${X11_XTest_LIB})
+    endif()
+endif()
+
 # Basic sanity test - check if executables exist
 add_test(
     NAME check_build_outputs

@@ -2,21 +2,42 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
-import org.kde.kirigami as Kirigami
+import "settings"
+
+// OverlayWindow — frameless, translucent HUD shown when the dial is active.
+//
+// Two pages share the same window:
+//   - mainView  : normal function/value display (existing behaviour)
+//   - pickerView: profile selection triggered by a long press on the dial
+//
+// Kirigami has been replaced by plain Qt palette colours so this renders
+// correctly on GNOME (Fusion style) and KDE (Fusion or Breeze) alike.
 
 Window {
     id: overlay
     width: 380
     height: 380
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.WindowTransparentForInput
+    // Qt.Tool + WindowDoesNotAcceptFocus: creates a standalone top-level that
+    // does not steal keyboard focus. Qt.ToolTip requires a transient parent
+    // (popup) which we don't have, so it fails on Wayland.
+    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+         | Qt.WindowDoesNotAcceptFocus
     visible: false
 
     x: (Screen.width - width) / 2
     y: Screen.height - height - 100
 
-    // ── Properties ──────────────────────────────────────────────────────
-    property bool overlayActive: dialController.active
+    // ── Dark monospace theme colours ─────────────────────────────────────
+    readonly property color bgColor:       "#0d0d0d"
+    readonly property color fgColor:       "#e8e8e8"
+    readonly property color accentColor:   "#ffffff"
+    readonly property color mutedColor:    "#888888"
+    readonly property color surfaceColor:  "#161616"
+    readonly property color dimBgColor:    "#121212"
+    readonly property string monoFont:     "monospace"
+
+    // ── Function display state ───────────────────────────────────────────
     property string functionName: ""
     property string iconName: ""
     property string unitText: ""
@@ -27,6 +48,20 @@ Window {
     property bool isDiscrete: false
     property bool showDots: false
 
+    // True while the overlay is hidden for a focus-escape (zoom injection).
+    // Suppresses rotation ticks from re-showing the overlay mid-escape.
+    property bool inFocusEscape: false
+
+    // True when the currently selected function needs the overlay to stay
+    // hidden during use (e.g. zoom — keystrokes must go to the focused app).
+    readonly property bool currentFunctionNeedsEscape: {
+        var funcs = dialController.currentFunctions;
+        var idx   = dialController.selectedFunctionIndex;
+        return (funcs.length > 0 && idx < funcs.length)
+               ? (funcs[idx].needsFocusEscape === true)
+               : false;
+    }
+
     property real normalizedValue: {
         if (isDiscrete) return 0;
         var range = maxVal - minVal;
@@ -35,54 +70,136 @@ Window {
     }
 
     Behavior on normalizedValue {
-        NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
+        SmoothedAnimation { duration: 180 }
     }
 
-    // ── Connections to DialController ───────────────────────────────────
+    // Drive canvas repaints at animation frame-rate as normalizedValue animates
+    onNormalizedValueChanged: gaugeCanvas.requestPaint()
+
+    // ── Settings window (persistent — just show/hide, never recreate) ───
+    SettingsWindow {
+        id: settingsWin
+        visible: false
+    }
+
+    // ── Connections to DialController ────────────────────────────────────
     Connections {
         target: dialController
 
+        function onSettingsRequested() {
+            settingsWin.visible = true
+            settingsWin.raise()
+            settingsWin.requestActivate()
+        }
+
         function onRotationTick() {
+            if (dialController.pickerActive) return;
+            if (overlay.inFocusEscape || overlay.currentFunctionNeedsEscape) return;
             pulseAnim.start();
             hideTimer.restart();
             if (!overlay.visible) {
                 overlay.visible = true;
                 showAnim.start();
             }
+            overlay.raise();
         }
 
         function onValueChanged(value) {
             currentValue = value;
-            gaugeCanvas.requestPaint();
         }
 
         function onFunctionChanged() {
             updateFunctionInfo();
-            gaugeCanvas.requestPaint();
         }
 
         function onFunctionCycled() {
-            cycleAnim.start();
+            if (dialController.pickerActive) return;
             updateFunctionInfo();
             showDots = true;
             dotsTimer.restart();
-            gaugeCanvas.requestPaint();
+            hideTimer.restart();
+            if (!overlay.visible) {
+                overlay.visible = true;
+                showAnim.start();
+            } else {
+                cycleAnim.start();
+            }
+            overlay.raise();
         }
 
         function onAdjustingChanged() {
+            if (dialController.pickerActive) return;
+            if (overlay.currentFunctionNeedsEscape) return; // zoom: never show from adjusting
             if (dialController.isAdjusting) {
                 hideTimer.stop();
                 if (!overlay.visible) {
                     overlay.visible = true;
                     showAnim.start();
                 }
+                overlay.raise();
             } else {
                 hideTimer.restart();
             }
         }
+
+        function onPickerActiveChanged(active) {
+            if (active !== 0) {
+                hideTimer.stop();
+                overlay.visible = true;
+                pickerShowAnim.start();
+                overlay.raise();
+            } else {
+                pickerHideAnim.start();
+            }
+        }
+
+        function onPickerIndexChanged(index) {
+            pickerList.currentIndex = index;
+            overlay.raise();
+        }
+
+        function onFocusEscapeRequired() {
+            // On Wayland, lower() alone does not transfer keyboard focus —
+            // only unmapping the surface (visible = false) forces the
+            // compositor to return focus to the previous app.
+            // Set inFocusEscape so rotation ticks don't re-show the overlay
+            // before the keystroke has been injected.
+            raiseGuardTimer.stop();
+            overlay.inFocusEscape = true;
+            overlay.visible = false;
+            focusRestoreTimer.restart();
+        }
     }
 
-    // ── Helper functions ────────────────────────────────────────────────
+    Timer {
+        id: focusRestoreTimer
+        // Longer than the C++ sleep (60 ms) to ensure the keystroke has
+        // landed before we clear the escape flag.
+        interval: 200
+        onTriggered: {
+            overlay.inFocusEscape = false;
+            // Do not restore visibility — let the next non-zoom rotation or
+            // function switch decide when to show the overlay again.
+            if (overlay.visible) {
+                overlay.raise();
+                raiseGuardTimer.start();
+            }
+        }
+    }
+
+    // Periodic guard: re-raise the overlay every 250 ms while it is visible
+    // so any window that appears on top (notifications, popups) gets pushed
+    // back under the HUD automatically.
+    // Deliberately stopped during focus-escape windows (see onFocusEscapeRequired).
+    Timer {
+        id: raiseGuardTimer
+        interval: 250
+        repeat: true
+        running: overlay.visible
+        onTriggered: overlay.raise()
+    }
+
+    // ── Helper functions ─────────────────────────────────────────────────
     function updateFunctionInfo() {
         var funcs = dialController.currentFunctions;
         var idx = dialController.selectedFunctionIndex;
@@ -104,122 +221,69 @@ Window {
 
     Component.onCompleted: updateFunctionInfo()
 
-    // ── Timers ──────────────────────────────────────────────────────────
-    Timer {
-        id: hideTimer
-        interval: 2500
-        onTriggered: hideAnim.start()
-    }
+    // ── Timers ────────────────────────────────────────────────────────────
+    Timer { id: hideTimer; interval: 2500; onTriggered: hideAnim.start() }
+    Timer { id: dotsTimer; interval: 1500; onTriggered: showDots = false }
 
-    Timer {
-        id: dotsTimer
-        interval: 1500
-        onTriggered: showDots = false
-    }
-
-    // ── Show animation ──────────────────────────────────────────────────
+    // ── Main view animations ──────────────────────────────────────────────
     ParallelAnimation {
         id: showAnim
-        NumberAnimation {
-            target: content
-            property: "scale"
-            from: 0.85; to: 1.0
-            duration: 300
-            easing.type: Easing.OutBack
-        }
-        NumberAnimation {
-            target: content
-            property: "opacity"
-            from: 0; to: 1
-            duration: 150
-            easing.type: Easing.OutQuad
-        }
+        NumberAnimation { target: content; property: "scale";   from: 0.85; to: 1.0; duration: 300; easing.type: Easing.OutBack }
+        NumberAnimation { target: content; property: "opacity"; from: 0;    to: 1;   duration: 150; easing.type: Easing.OutQuad }
     }
-
-    // ── Hide animation ──────────────────────────────────────────────────
     ParallelAnimation {
         id: hideAnim
-        NumberAnimation {
-            target: content
-            property: "scale"
-            from: 1.0; to: 0.92
-            duration: 150
-            easing.type: Easing.InQuad
-        }
-        NumberAnimation {
-            target: content
-            property: "opacity"
-            from: 1; to: 0
-            duration: 200
-            easing.type: Easing.InQuad
-        }
-        onFinished: {
-            overlay.visible = false;
-            content.scale = 0.85;
-        }
+        NumberAnimation { target: content; property: "scale";   from: 1.0;  to: 0.92; duration: 150; easing.type: Easing.InQuad }
+        NumberAnimation { target: content; property: "opacity"; from: 1;    to: 0;    duration: 200; easing.type: Easing.InQuad }
+        onFinished: { overlay.visible = false; content.scale = 0.85; }
     }
-
-    // ── Rotation pulse animation (front circle) ─────────────────────────
     SequentialAnimation {
         id: pulseAnim
-        NumberAnimation {
-            target: frontCircle
-            property: "scale"
-            from: 1.0; to: 1.025
-            duration: 80
-            easing.type: Easing.OutQuad
-        }
-        NumberAnimation {
-            target: frontCircle
-            property: "scale"
-            from: 1.025; to: 1.0
-            duration: 120
-            easing.type: Easing.InQuad
-        }
+        NumberAnimation { target: frontCircle; property: "scale"; from: 1.0; to: 1.025; duration: 80;  easing.type: Easing.OutQuad }
+        NumberAnimation { target: frontCircle; property: "scale"; from: 1.025; to: 1.0; duration: 120; easing.type: Easing.InQuad }
     }
-
-    // ── Function cycle animation (front circle bounce) ──────────────────
     SequentialAnimation {
         id: cycleAnim
-        NumberAnimation {
-            target: frontCircle
-            property: "scale"
-            from: 1.0; to: 0.95
-            duration: 125
-            easing.type: Easing.InOutQuad
-        }
-        NumberAnimation {
-            target: frontCircle
-            property: "scale"
-            from: 0.95; to: 1.0
-            duration: 125
-            easing.type: Easing.OutBack
-        }
+        NumberAnimation { target: frontCircle; property: "scale"; from: 1.0; to: 0.95; duration: 125; easing.type: Easing.InOutQuad }
+        NumberAnimation { target: frontCircle; property: "scale"; from: 0.95; to: 1.0; duration: 125; easing.type: Easing.OutBack }
     }
 
-    // ── Main content container ──────────────────────────────────────────
+    // ── Profile picker animations ─────────────────────────────────────────
+    ParallelAnimation {
+        id: pickerShowAnim
+        NumberAnimation { target: pickerView; property: "scale";   from: 0.85; to: 1.0; duration: 280; easing.type: Easing.OutBack }
+        NumberAnimation { target: pickerView; property: "opacity"; from: 0;    to: 1;   duration: 160; easing.type: Easing.OutQuad }
+    }
+    ParallelAnimation {
+        id: pickerHideAnim
+        NumberAnimation { target: pickerView; property: "scale";   from: 1.0;  to: 0.9; duration: 160; easing.type: Easing.InQuad }
+        NumberAnimation { target: pickerView; property: "opacity"; from: 1;    to: 0;   duration: 180; easing.type: Easing.InQuad }
+        onFinished: { pickerView.scale = 0.85; if (!dialController.pickerActive) overlay.visible = false; }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // MAIN VIEW — function display
+    // ════════════════════════════════════════════════════════════════════
     Item {
         id: content
         anchors.fill: parent
         scale: 0.85
         opacity: 0
+        visible: !dialController.pickerActive || pickerView.opacity < 0.05
 
-        // ── Back circle (gauge ring) ────────────────────────────────────
+        // Back circle (gauge ring)
         Item {
             id: backCircle
-            width: 340
-            height: 340
+            width: 340; height: 340
             anchors.centerIn: parent
             anchors.verticalCenterOffset: 2
 
-            // Dim background circle
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
-                color: Qt.darker(Kirigami.Theme.backgroundColor, 1.3)
+                color: overlay.dimBgColor
             }
 
-            // Segmented gauge arc
             Canvas {
                 id: gaugeCanvas
                 anchors.fill: parent
@@ -230,128 +294,217 @@ Window {
                     ctx.reset();
                     ctx.clearRect(0, 0, width, height);
 
-                    var cx = width / 2;
-                    var cy = height / 2;
+                    var cx = width / 2, cy = height / 2;
                     var lineWidth = 14;
                     var r = (Math.min(width, height) / 2) - lineWidth - 4;
-
                     var totalSegments = 20;
-                    var gapAngle = 0.04; // radians gap between segments
+                    var gapAngle = 0.04;
                     var totalArc = Math.PI * 2;
                     var segmentArc = (totalArc - totalSegments * gapAngle) / totalSegments;
-
-                    var filledCount = Math.round(normalizedValue * totalSegments);
-                    filledCount = Math.max(0, Math.min(totalSegments, filledCount));
-
-                    var startAngle = -Math.PI / 2; // top of circle
+                    var filledCount = Math.max(0, Math.min(totalSegments, Math.round(normalizedValue * totalSegments)));
+                    var startAngle = -Math.PI / 2;
 
                     ctx.lineWidth = lineWidth;
                     ctx.lineCap = "round";
 
                     for (var i = 0; i < totalSegments; i++) {
                         var segStart = startAngle + i * (segmentArc + gapAngle);
-                        var segEnd = segStart + segmentArc;
-
                         ctx.beginPath();
-                        if (i < filledCount) {
-                            ctx.strokeStyle = Kirigami.Theme.highlightColor;
-                        } else {
-                            ctx.strokeStyle = Qt.darker(Kirigami.Theme.backgroundColor, 1.3);
-                        }
-                        ctx.arc(cx, cy, r, segStart, segEnd);
+                        ctx.strokeStyle = (i < filledCount) ? overlay.accentColor : overlay.dimBgColor;
+                        ctx.arc(cx, cy, r, segStart, segStart + segmentArc);
                         ctx.stroke();
                     }
                 }
             }
         }
 
-        // ── Front circle drop shadow ────────────────────────────────────
+        // Front circle drop-shadow
         Rectangle {
-            id: frontShadow
-            width: 268
-            height: 268
+            width: 268; height: 268
             radius: width / 2
             color: "#50000000"
             anchors.centerIn: parent
             anchors.verticalCenterOffset: 6
         }
 
-        // ── Front circle (info display) ─────────────────────────────────
+        // Front circle — info display
         Rectangle {
             id: frontCircle
-            width: 260
-            height: 260
+            width: 260; height: 260
             radius: width / 2
-            color: Kirigami.Theme.backgroundColor
-            border.color: Kirigami.Theme.separatorColor
+            color: overlay.surfaceColor
+            border.color: "#2a2a2a"
             border.width: 1
             anchors.centerIn: parent
 
-            // Center content
+            // Main content — only function name + value, so it centres cleanly
             ColumnLayout {
                 anchors.centerIn: parent
-                spacing: 4
+                spacing: 6
 
-                // Function icon
-                Kirigami.Icon {
+                // Icon — QIcon::fromTheme works on both GNOME and KDE.
+                Image {
                     Layout.alignment: Qt.AlignHCenter
-                    source: iconName
-                    implicitWidth: 36
-                    implicitHeight: 36
-                    color: Kirigami.Theme.textColor
+                    source: iconName ? "image://icon/" + iconName : ""
+                    width: 36; height: 36
+                    fillMode: Image.PreserveAspectFit
+                    visible: iconName !== "" && status === Image.Ready
                 }
 
-                // Function name
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: functionName
+                    font.family: overlay.monoFont
                     font.pixelSize: 15
                     font.weight: Font.Medium
-                    color: Kirigami.Theme.textColor
+                    color: overlay.fgColor
                 }
 
-                // Value text
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: isDiscrete ? "\u2014" : Math.round(currentValue) + unitText
+                    font.family: overlay.monoFont
                     font.pixelSize: 30
                     font.weight: Font.Bold
-                    color: Kirigami.Theme.highlightColor
-                }
-
-                // Profile name
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: dialController.currentProfileName
-                    font.pixelSize: 10
-                    color: Kirigami.Theme.disabledTextColor
+                    color: overlay.accentColor
                 }
             }
 
-            // ── Function selector dots ──────────────────────────────────
-            Row {
-                id: functionDots
+            // Profile name sits at the bottom of the circle, separate from the
+            // centered content so it doesn't pull the visual centre of gravity down
+            Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 20
+                anchors.bottomMargin: 38
+                text: dialController.currentProfileName
+                font.family: overlay.monoFont
+                font.pixelSize: 10
+                color: overlay.mutedColor
+            }
+
+            // Function selector dots
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 22
                 spacing: 6
                 visible: showDots
                 opacity: showDots ? 1.0 : 0.0
-
-                Behavior on opacity {
-                    NumberAnimation { duration: 200 }
-                }
+                Behavior on opacity { NumberAnimation { duration: 200 } }
 
                 Repeater {
                     model: dialController.currentFunctions
                     delegate: Rectangle {
-                        width: 6
-                        height: 6
-                        radius: 3
+                        width: 6; height: 6; radius: 3
                         color: index === dialController.selectedFunctionIndex
-                               ? Kirigami.Theme.highlightColor
-                               : Kirigami.Theme.disabledTextColor
+                               ? overlay.accentColor : overlay.mutedColor
                     }
+                }
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // PROFILE PICKER — shown on long press
+    // ════════════════════════════════════════════════════════════════════
+    Item {
+        id: pickerView
+        anchors.fill: parent
+        scale: 0.85
+        opacity: 0
+        visible: opacity > 0.01
+
+        // Dark background circle
+        Rectangle {
+            width: 340; height: 340
+            anchors.centerIn: parent
+            radius: width / 2
+            color: overlay.dimBgColor
+        }
+
+        // White inner circle
+        Rectangle {
+            width: 260; height: 260
+            anchors.centerIn: parent
+            radius: width / 2
+            color: overlay.surfaceColor
+            border.color: overlay.accentColor
+            border.width: 2
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 6
+
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: "Select Profile"
+                    font.family: overlay.monoFont
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                    color: overlay.mutedColor
+                }
+
+                // Profile list — keep current item centred in viewport
+                ListView {
+                    id: pickerList
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    model: dialController.availableProfiles
+                    clip: true
+                    currentIndex: dialController.pickerIndex
+                    highlightMoveDuration: 120
+                    // StrictlyEnforceRange pins the selected item at the centre
+                    highlightRangeMode: ListView.StrictlyEnforceRange
+                    preferredHighlightBegin: height / 2 - 16
+                    preferredHighlightEnd:   height / 2 + 16
+
+                    highlight: Rectangle {
+                        color: overlay.accentColor
+                        radius: 4
+                        opacity: 0.25
+                    }
+
+                    delegate: Item {
+                        width: pickerList.width
+                        height: modelData.id === "__settings__" ? 38 : 32
+
+                        // Thin divider above the Settings entry
+                        Rectangle {
+                            visible: modelData.id === "__settings__"
+                            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                            anchors.leftMargin: 12; anchors.rightMargin: 12
+                            height: 1
+                            color: overlay.mutedColor
+                            opacity: 0.4
+                        }
+
+                        Text {
+                            width: parent.width
+                            height: parent.height
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            topPadding: modelData.id === "__settings__" ? 3 : 0
+                            text: modelData.name
+                            font.family: overlay.monoFont
+                            font.pixelSize: modelData.id === "__settings__" ? 11 : 13
+                            font.weight: index === pickerList.currentIndex ? Font.Bold : Font.Normal
+                            color: index === pickerList.currentIndex
+                                   ? overlay.accentColor
+                                   : (modelData.id === "__settings__" ? overlay.mutedColor : overlay.fgColor)
+                        }
+                    }
+                }
+
+                // Hint text
+                Text {
+                    Layout.fillWidth: true
+                    text: "Rotate to browse · Press to confirm"
+                    font.family: overlay.monoFont
+                    font.pixelSize: 9
+                    color: overlay.mutedColor
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
                 }
             }
         }

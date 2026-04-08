@@ -1,54 +1,43 @@
-# Contributing to openwheel
+# Contributing to OpenWheel
 
-Thank you for contributing! This project aims to integrate well with KDE Plasma and the broader KDE ecosystem. Please follow the expectations below when preparing changes.
+OpenWheel is a GNOME/Wayland-first dial driver for the ASUS ProArt Dial. Contributions are welcome — bug fixes, new profiles, UX improvements, and KDE Plasma compatibility fixes are all appreciated.
 
-## Code of Conduct
+## Workflow
 
-All contributors are expected to follow the KDE Code of Conduct:
-https://kde.org/code-of-conduct/
+1. Fork the repository on GitHub.
+2. Create a topic branch (`git checkout -b fix/my-fix`).
+3. Make your changes and run the tests (`cd build && ctest --output-on-failure`).
+4. Open a pull request against `main`.
 
-## GitLab merge request workflow
+Keep CI green. PRs must pass all checks before merging.
 
-We use the standard KDE GitLab workflow:
+## Stack
 
-1. Fork the repository on KDE GitLab (invent.kde.org).
-2. Create a topic branch for your change.
-3. Push the branch to your fork.
-4. Open a Merge Request (MR) against the upstream project.
-5. Respond to review feedback and keep the MR up to date.
+| Component | Language | Notes |
+|---|---|---|
+| `openwheel-daemon` | C11 | No C++. Reads HID, broadcasts D-Bus, exposes uinput. |
+| `openwheel-gadget` | C++20 / Qt 6 QML | GNOME-first; KDE Frameworks 6 is fully optional. |
+| Profiles | JSON | No code required for new app profiles. |
 
-## Target branch policy
+- **Qt 6** is required. Do not introduce Qt 5-only APIs.
+- **KDE Frameworks 6** is optional — the gadget must build and run correctly with `-DNO_KDE_FRAMEWORKS`.
+- Do not add runtime dependencies beyond what is listed in the README prerequisites.
 
-* Target the default development branch (typically `master`/`main`) unless a maintainer asks for a backport.
-* Backports should be proposed in separate MRs and must be clearly labeled.
+## Adding a profile
 
-## CI checks and expectations
+Create `profiles/<appname>.json` following the format in `profiles/system-default.json`. Set `"enabled": false` if the profile targets a niche application (Blender, Krita style). Test it by placing the file in `~/.local/share/openwheel/profiles/` and restarting the gadget.
 
-* Keep CI green. MRs must pass all configured checks before they can be merged.
-* If your change affects build or runtime behavior, include any required updates to tests or packaging metadata.
+## Coding style
 
-## Qt/KF requirements
+- Follow the existing formatting in each file (no style reformatter PRs).
+- Prefer small, focused commits with a clear subject line.
+- New files must include an SPDX licence header consistent with existing sources.
+- Avoid breaking the no-KDE build path — guard KF6 calls with `#ifdef HAVE_KF6`.
 
-This project targets the KDE Plasma 6 / KDE Frameworks 6 (KF6) stack:
+## Reporting bugs
 
-* **Qt:** Qt 6 is required. Do not introduce new Qt 5 dependencies.
-* **KDE Frameworks:** KF6 is required where KDE Frameworks APIs are used.
-* Keep compatibility with the minimum Qt/KF versions used by Plasma 6 releases.
-
-## Coding style expectations
-
-* Follow existing formatting and naming conventions in each subproject.
-* Prefer clear, self-documenting code and small, focused commits.
-* Avoid unnecessary API/ABI changes unless agreed with maintainers.
-
-## Licensing compatibility
-
-* Contributions must be compatible with the project’s licensing (GPL/LGPL).
-* Only include dependencies and code that are compatible with GPL/LGPL.
-* When adding new files, include appropriate license headers consistent with existing sources.
-
-## Plasma 6 / KF6 specifics
-
-* Use Qt 6 and KF6 APIs; avoid deprecated Qt 5/KF5 interfaces.
-* Ensure UI work aligns with Plasma 6 design conventions and platforms.
-* If you add Plasma-specific integrations, note any version constraints in the MR description.
+Open a GitHub issue and include:
+- Fedora/distro version
+- GNOME Shell version (`gnome-shell --version`)
+- Output of `gdbus call --session --dest org.asus.dial --object-path /org/asus/dial --method org.asus.dial.InjectionAvailable`
+- Whether `/dev/hidraw*` and `/dev/uinput` are accessible without root

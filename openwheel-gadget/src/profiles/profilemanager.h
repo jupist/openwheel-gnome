@@ -63,9 +63,38 @@ public:
     QString currentProfileId() const { return m_currentProfileId; }
     QString currentProfileName() const;
 
+    /**
+     * Save a profile to the user's profile directory.
+     * System profiles (isDefault) cannot be overwritten.
+     */
+    bool saveProfile(const Profile &profile);
+
+    /**
+     * Create a new user profile with the given display name.
+     * Returns the new profile's ID, or an empty string on failure.
+     */
+    QString createProfile(const QString &displayName);
+
+    /**
+     * Delete a user profile by ID. System/default profiles are protected.
+     * Returns true on success.
+     */
+    bool deleteProfile(const QString &profileId);
+
+    /**
+     * Reload all profiles from disk, preserving the current selection.
+     */
+    void reloadProfiles();
+
+    /**
+     * Returns the writable user profile directory path.
+     */
+    QString userProfileDir() const;
+
 Q_SIGNALS:
     void currentProfileChanged(const QString &profileId);
     void profilesLoaded();
+    void profilesChanged();
 
 private:
     void loadProfilesFromDirectory(const QString &dirPath);

@@ -24,7 +24,10 @@ else()
     message(STATUS "Using Qt6")
 endif()
 
-# Try to find KDE Frameworks (optional for basic build)
+# KDE Frameworks — fully optional. The gadget is GNOME/Wayland-first;
+# KF6 enables single-instance enforcement (KDBusService) and KDE About
+# dialog. WindowSystem is no longer required: auto window detection has
+# been replaced by manual profile selection.
 if(QT_VERSION_MAJOR EQUAL 6)
     find_package(ECM QUIET NO_MODULE)
     if(ECM_FOUND)
@@ -37,14 +40,17 @@ if(QT_VERSION_MAJOR EQUAL 6)
             Config
             CoreAddons
             I18n
-            WindowSystem
             DBusAddons
         )
 
         if(KF6_FOUND)
             set(HAVE_KF6 TRUE)
-            message(STATUS "KDE Frameworks 6 found")
+            message(STATUS "KDE Frameworks 6 found (optional features enabled)")
+        else()
+            message(STATUS "KDE Frameworks 6 not found — building GNOME-native mode")
         endif()
+    else()
+        message(STATUS "ECM not found — building without KDE Frameworks")
     endif()
 endif()
 
@@ -69,6 +75,7 @@ set(openwheel_gadget_SRCS
     src/core/dialcontroller.cpp
     src/core/rotationhandler.cpp
     src/core/actionexecutor.cpp
+    src/core/desktopenvironment.cpp
     src/profiles/profile.cpp
     src/profiles/profilemanager.cpp
     src/profiles/applicationmatcher.cpp
@@ -108,20 +115,24 @@ else()
     )
 endif()
 
-# Link KDE Frameworks if available
+# Link KDE Frameworks if available (positive flag — default build has none).
 if(HAVE_KF6)
     target_link_libraries(openwheel-gadget
         KF6::ConfigCore
         KF6::CoreAddons
         KF6::I18n
-        KF6::WindowSystem
         KF6::DBusAddons
     )
+    target_compile_definitions(openwheel-gadget PRIVATE HAVE_KF6)
+    message(STATUS "Linking KDE Frameworks 6")
 else()
-    message(WARNING "Building without KDE Frameworks - some features will be limited")
-    # Add a define so we can conditionally compile KF-dependent code
-    target_compile_definitions(openwheel-gadget PRIVATE NO_KDE_FRAMEWORKS)
+    message(STATUS "Building without KDE Frameworks (GNOME-native default)")
 endif()
+
+# Expose project version to source so it isn't hardcoded as a string literal.
+target_compile_definitions(openwheel-gadget PRIVATE
+    OPENWHEEL_VERSION="${PROJECT_VERSION}"
+)
 
 # Link X11 libraries if available
 if(HAVE_X11)
@@ -144,27 +155,27 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/profiles/
     FILES_MATCHING PATTERN "*.json"
 )
 
-# Install desktop file if it exists
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/openwheel-gadget.desktop)
-    install(FILES openwheel-gadget.desktop
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
-        COMPONENT data
-    )
-endif()
+# Install desktop file — app menu entry
+install(FILES openwheel-gadget.desktop
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+    COMPONENT data
+)
+# XDG autostart — respects CMAKE_INSTALL_SYSCONFDIR so test installs work
+install(FILES openwheel-gadget.desktop
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/xdg/autostart
+    COMPONENT data
+)
 
-# Install icon if it exists
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/openwheel-gadget.png)
-    install(FILES openwheel-gadget.png
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/128x128/apps
-        COMPONENT data
-    )
-endif()
+# Install SVG icon
+install(FILES openwheel.svg
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+    COMPONENT data
+)
 
-# Install headers for development
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openwheel-gadget
-    COMPONENT gadget-dev
-    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+# Install AppStream metadata
+install(FILES openwheel-gadget.metainfo.xml
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo
+    COMPONENT data
 )
 
 message(STATUS "")

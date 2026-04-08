@@ -1,5 +1,8 @@
 <RCC>
     <qresource prefix="/ui">
         <file>OverlayWindow.qml</file>
+        <file>settings/SettingsWindow.qml</file>
+        <file>settings/FunctionEditor.qml</file>
+        <file>settings/ActionEditor.qml</file>
     </qresource>
 </RCC>
