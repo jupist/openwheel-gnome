@@ -28,10 +28,11 @@ All keystroke and scroll injection goes through `/dev/uinput` — the daemon cre
 - **Wayland-native input** — uinput virtual device; no X11 dependency for key injection
 - **Press-to-activate mode** — actions only fire while the button is held (toggle in Settings)
 - **Floating overlay HUD** — segmented arc gauge, function name, smooth animations; never steals keyboard focus from your app
-- **Profile picker** — long-press the dial button, rotate to browse profiles, press to confirm
+- **Function picker** — double-press the dial to open an in-profile menu; rotate to browse, press to select
+- **Profile picker** — long-press the dial to switch profiles; rotate to browse, press to confirm
 - **Per-application profiles** — JSON profiles for System, Music, Workspaces, Blender, Krita; enable/disable per profile in Settings
-- **Settings window** — remap functions, add presets, create/delete profiles without editing JSON
-- **Window switcher** — sticky Alt+Tab (Alt stays held across rotations, shows the GNOME task switcher)
+- **Settings window** — remap functions, create/delete profiles, built-in help guide; no JSON editing required
+- **Window switcher** — sticky Alt+Tab (Alt stays held across rotations; press to confirm selection)
 - **GNOME brightness** — via `org.freedesktop.login1` (logind); falls back to `brightnessctl`
 - **Volume** — via PipeWire/PulseAudio through `wpctl`
 - **KDE Plasma compatible** — KDE Frameworks 6 is fully optional
@@ -73,7 +74,7 @@ sudo dnf install cmake ninja-build gcc-c++ dbus-devel \
 
 # 2. Clone and build
 git clone https://github.com/jupist/openwheel-gnome.git
-cd openwheel
+cd openwheel-gnome
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 
@@ -118,7 +119,7 @@ sudo apt-get install cmake ninja-build build-essential libdbus-1-dev \
     qt6-base-dev qt6-declarative-dev libx11-dev libxtst-dev
 
 git clone https://github.com/jupist/openwheel-gnome.git
-cd openwheel
+cd openwheel-gnome
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 sudo cmake --install build --prefix /usr
@@ -141,8 +142,8 @@ openwheel-gadget &
 | Hold button + rotate | Adjust the current function |
 | Hold button + rotate fast | Accelerated adjustment (up to 4×) |
 | Press and release (no rotation) | Execute the function's click action |
-| Double-press | Cycle to the next function |
-| Long-press (600 ms, no rotation) | Open profile picker |
+| Double-press | Open **function picker** — choose a function within the current profile |
+| Long-press (600 ms, no rotation) | Open **profile picker** — switch between profiles |
 
 ### Press-to-activate OFF
 
@@ -150,10 +151,17 @@ openwheel-gadget &
 |---|---|
 | Rotate | Adjust the current function |
 | Press and release | Execute the function's click action |
-| Double-press | Cycle to the next function |
-| Long-press | Open profile picker |
+| Double-press | Open **function picker** |
+| Long-press | Open **profile picker** |
 
-### Profile picker
+### Function picker (double-press)
+
+| Gesture | Effect |
+|---|---|
+| Rotate | Browse functions in the current profile |
+| Press | Confirm and switch to selected function |
+
+### Profile picker (long-press)
 
 | Gesture | Effect |
 |---|---|
@@ -165,13 +173,14 @@ openwheel-gadget &
 
 ## Settings window
 
-Open via the profile picker (scroll to the last entry "⚙ Settings" and press).
+Open via the profile picker (long-press the dial, scroll to "⚙ Settings", press to confirm).
 
-- **Behaviour** — toggle press-to-activate on/off
+- **`?` help button** — step-by-step guide to creating, editing, and deleting profiles
+- **Behaviour** — toggle press-to-activate on/off; toggle daemon autostart on login
 - **Profile list** — the dot on the right of each profile enables/disables it in the picker; disabled profiles are still editable
-- **Function editor** — label, icon, type (continuous/discrete), unit, min/max value
-- **Action editor** — keyboard shortcut, mouse scroll, D-Bus call, or shell command; includes a **Test** button to fire the action immediately
-- **Presets** — Window Switcher (Alt+Tab sticky rotation)
+- **Function editor** — label, type (continuous/discrete), unit; expand a card to edit
+- **Action editor** — keyboard shortcut, mouse scroll, D-Bus call, or shell command; **Test** button fires the action immediately
+- **Unsaved changes** — the title bar shows `*` when changes are pending; closing without saving discards all edits (Ctrl+S to save)
 
 Changes are saved to `~/.local/share/openwheel/profiles/` and survive package upgrades.
 
@@ -272,12 +281,11 @@ openwheel-gadget/src/
     profile.cpp             JSON (de)serialisation for Profile, Function, ActionConfig
     applicationmatcher.cpp  Manual profile selection shim
   ui/
-    OverlayWindow.qml            Floating HUD + profile picker
+    OverlayWindow.qml            Floating HUD, function picker, profile picker
     settings/
-      SettingsWindow.qml         Profile list + behaviour toggles
+      SettingsWindow.qml         Profile list + behaviour toggles + help popup
       FunctionEditor.qml         Per-function editor
       ActionEditor.qml           Per-action editor with Test button
-      WindowSwitcherPreset.qml   Alt+Tab sticky preset
 
 profiles/    Bundled JSON profiles
 udev/        99-openwheel.rules
