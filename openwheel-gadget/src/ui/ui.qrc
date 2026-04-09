@@ -4,5 +4,6 @@
         <file>settings/SettingsWindow.qml</file>
         <file>settings/FunctionEditor.qml</file>
         <file>settings/ActionEditor.qml</file>
+        <file alias="openwheel.svg">../../openwheel.svg</file>
     </qresource>
 </RCC>

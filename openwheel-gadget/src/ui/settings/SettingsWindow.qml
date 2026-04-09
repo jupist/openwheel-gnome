@@ -29,6 +29,7 @@ ApplicationWindow {
     property string selectedProfileId: ""
     property var profileData: null
     property bool dirty: false
+    property int expandedFunctionIndex: -1
 
     function selectProfile(id) {
         if (dirty) { discardDialog.pendingId = id; discardDialog.open(); return }
@@ -38,6 +39,7 @@ ApplicationWindow {
         selectedProfileId = id
         profileData = JSON.parse(JSON.stringify(dialController.getProfileData(id)))
         dirty = false
+        expandedFunctionIndex = -1
     }
     function saveCurrentProfile() {
         if (!profileData) return
@@ -679,6 +681,17 @@ ApplicationWindow {
                                 FunctionEditor {
                                     width: parent.width
                                     functionData: modelData
+                                    // Restore expanded state after model rebuilds
+                                    Component.onCompleted: {
+                                        if (index === settingsWindow.expandedFunctionIndex)
+                                            expanded = true
+                                    }
+                                    onExpandedChanged: {
+                                        if (expanded)
+                                            settingsWindow.expandedFunctionIndex = index
+                                        else if (settingsWindow.expandedFunctionIndex === index)
+                                            settingsWindow.expandedFunctionIndex = -1
+                                    }
                                     onFunctionChanged: function(updated) {
                                         if (!profileData) return
                                         var funcs = profileData.functions.slice()

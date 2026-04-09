@@ -72,6 +72,9 @@ int main(int argc, char *argv[])
     QApplication::setOrganizationName(QStringLiteral("openwheel"));
     QApplication::setOrganizationDomain(QStringLiteral("openwheel.org"));
     QApplication::setApplicationVersion(QStringLiteral(OPENWHEEL_VERSION));
+    // Wayland app-id — must match the .desktop filename (without .desktop).
+    // GNOME Shell uses this to look up the icon from the installed .desktop file.
+    QApplication::setDesktopFileName(QStringLiteral("openwheel-gadget"));
 
 #ifdef HAVE_KF6
     KAboutData aboutData(
@@ -89,7 +92,8 @@ int main(int argc, char *argv[])
         QStringLiteral("https://github.com/jupist/openwheel-gnome")
     );
     KAboutData::setApplicationData(aboutData);
-    QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("input-dial")));
+    QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("openwheel"),
+                                                 QIcon(QStringLiteral(":/ui/openwheel.svg"))));
 
     // Enforce single-instance on KDE.
     KDBusService service(KDBusService::Unique);
@@ -120,7 +124,7 @@ int main(int argc, char *argv[])
     if (QSystemTrayIcon::isSystemTrayAvailable()) {
         auto *trayIcon = new QSystemTrayIcon(&app);
         trayIcon->setIcon(QIcon::fromTheme(QStringLiteral("openwheel"),
-                                           QIcon::fromTheme(QStringLiteral("input-dial"))));
+                                           QIcon(QStringLiteral(":/ui/openwheel.svg"))));
         trayIcon->setToolTip(QStringLiteral("OpenWheel Gadget"));
 
         auto *trayMenu = new QMenu();

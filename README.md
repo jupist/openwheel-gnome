@@ -206,11 +206,11 @@ Profiles live in `/usr/share/openwheel/profiles/` (system) or `~/.local/share/op
 
 ```jsonc
 {
-  "id": "my-app",
-  "displayName": "My App",
-  "enabled": true,
-  "processNames": ["myapp"],         // substring match on process name
-  "windowClassPattern": "^MyApp$",   // regex on WM_CLASS
+  "id": "blender",
+  "displayName": "Blender",
+  "enabled": false,
+  "processNames": ["blender"],       // substring match on process name
+  "windowClassPattern": "^Blender$", // regex on WM_CLASS
   "functions": [
     {
       "id": "brush-size",
@@ -222,9 +222,9 @@ Profiles live in `/usr/share/openwheel/profiles/` (system) or `~/.local/share/op
       "maxValue": 500,
       "clockwiseAction": {
         "type": "keyboard",
-        "keys": "bracketright",       // see key names below
+        "keys": "bracketright",       // see supported key names below
         "modifiers": [],              // "ctrl" | "shift" | "alt" | "super"
-        "rotationThreshold": 15,      // degrees per trigger
+        "rotationThreshold": 1,       // degrees of rotation per trigger
         "accelerationEnabled": true
       },
       "counterClockwiseAction": { "type": "keyboard", "keys": "bracketleft" },
@@ -362,12 +362,6 @@ cd build && ctest --output-on-failure
 - GNOME 46+ on Wayland (Fedora 40+)
 - KDE Plasma 6 on Wayland
 - PipeWire audio
-
----
-
-## Contributing
-
-Pull requests are welcome. Please keep the daemon in plain C11 (no C++) and the gadget in C++20 / Qt 6 QML. Run `ctest` before submitting.
 
 ---
 
