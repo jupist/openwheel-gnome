@@ -39,6 +39,9 @@ class DialController : public QObject
     Q_PROPERTY(QVariantList availableProfiles READ availableProfiles NOTIFY profilesChanged)
     Q_PROPERTY(int pickerActive READ isPickerActive NOTIFY pickerActiveChanged)
     Q_PROPERTY(int pickerIndex READ pickerIndex NOTIFY pickerIndexChanged)
+    // Function picker (double-press within current profile)
+    Q_PROPERTY(int funcPickerActive READ isFuncPickerActive NOTIFY funcPickerActiveChanged)
+    Q_PROPERTY(int funcPickerIndex  READ funcPickerIndex    NOTIFY funcPickerIndexChanged)
     // Global behaviour (int not bool — X11 headers define Bool as a macro)
     Q_PROPERTY(int pressToActivate READ pressToActivate WRITE setPressToActivate NOTIFY pressToActivateChanged)
     // Daemon systemd user-service autostart (default: disabled)
@@ -68,6 +71,10 @@ public:
     int isPickerActive() const { return m_pickerActive ? 1 : 0; }
     int pickerIndex() const { return m_pickerIndex; }
 
+    // Function picker
+    int isFuncPickerActive() const { return m_funcPickerActive ? 1 : 0; }
+    int funcPickerIndex() const { return m_funcPickerIndex; }
+
     // Global behaviour (int not bool — X11 headers define Bool as a macro)
     int pressToActivate() const { return m_pressToActivate ? 1 : 0; }
     void setPressToActivate(int enabled);
@@ -87,6 +94,11 @@ public:
     Q_INVOKABLE void openProfilePicker();
     Q_INVOKABLE void closeProfilePicker();
     Q_INVOKABLE void confirmProfilePicker();   // apply pickerIndex selection
+
+    // Function picker (double-press).
+    Q_INVOKABLE void openFunctionPicker();
+    Q_INVOKABLE void closeFunctionPicker();
+    Q_INVOKABLE void confirmFunctionPicker();  // apply funcPickerIndex selection
     Q_INVOKABLE void setActiveProfile(const QString &profileId);
 
     // Settings window.
@@ -127,6 +139,8 @@ Q_SIGNALS:
     void settingsRequested();
     void pickerActiveChanged(int active);
     void pickerIndexChanged(int index);
+    void funcPickerActiveChanged(int active);
+    void funcPickerIndexChanged(int index);
     void pressToActivateChanged();  // bool arg omitted — X11 defines Bool as a macro
     void daemonAutostartChanged();
     void focusEscapeRequired();     // overlay should briefly lower itself
@@ -164,7 +178,12 @@ private:
     // Profile picker state
     int m_pickerActive = 0;
     int m_pickerIndex = 0;
-    int m_pickerTickAccum = 0;   // accumulates raw ticks; picker advances every 3
+    int m_pickerTickAccum = 0;
+
+    // Function picker state
+    int m_funcPickerActive = 0;
+    int m_funcPickerIndex = 0;
+    int m_funcPickerTickAccum = 0;
     QTimer *m_longPressTimer = nullptr;
     static constexpr int LONG_PRESS_MS = 600;
 

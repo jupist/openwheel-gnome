@@ -100,10 +100,10 @@
             },
             "clickAction": {
                 "type": "keyboard",
-                "keys": "tab",
-                "modifiers": [
-                    "alt"
-                ]
+                "keys": "",
+                "modifiers": [],
+                "rotationThreshold": 1,
+                "accelerationEnabled": false
             }
         }
     ],

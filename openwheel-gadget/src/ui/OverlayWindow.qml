@@ -93,7 +93,7 @@ Window {
         }
 
         function onRotationTick() {
-            if (dialController.pickerActive) return;
+            if (dialController.pickerActive || dialController.funcPickerActive) return;
             if (overlay.inFocusEscape || overlay.currentFunctionNeedsEscape) return;
             pulseAnim.start();
             hideTimer.restart();
@@ -113,7 +113,7 @@ Window {
         }
 
         function onFunctionCycled() {
-            if (dialController.pickerActive) return;
+            if (dialController.pickerActive || dialController.funcPickerActive) return;
             updateFunctionInfo();
             showDots = true;
             dotsTimer.restart();
@@ -128,7 +128,7 @@ Window {
         }
 
         function onAdjustingChanged() {
-            if (dialController.pickerActive) return;
+            if (dialController.pickerActive || dialController.funcPickerActive) return;
             if (overlay.currentFunctionNeedsEscape) return; // zoom: never show from adjusting
             if (dialController.isAdjusting) {
                 hideTimer.stop();
@@ -155,6 +155,22 @@ Window {
 
         function onPickerIndexChanged(index) {
             pickerList.currentIndex = index;
+            overlay.raise();
+        }
+
+        function onFuncPickerActiveChanged(active) {
+            if (active !== 0) {
+                hideTimer.stop();
+                overlay.visible = true;
+                funcPickerShowAnim.start();
+                overlay.raise();
+            } else {
+                funcPickerHideAnim.start();
+            }
+        }
+
+        function onFuncPickerIndexChanged(index) {
+            funcPickerList.currentIndex = index;
             overlay.raise();
         }
 
@@ -261,6 +277,19 @@ Window {
         onFinished: { pickerView.scale = 0.85; if (!dialController.pickerActive) overlay.visible = false; }
     }
 
+    // ── Function picker animations ────────────────────────────────────────
+    ParallelAnimation {
+        id: funcPickerShowAnim
+        NumberAnimation { target: funcPickerView; property: "scale";   from: 0.85; to: 1.0; duration: 280; easing.type: Easing.OutBack }
+        NumberAnimation { target: funcPickerView; property: "opacity"; from: 0;    to: 1;   duration: 160; easing.type: Easing.OutQuad }
+    }
+    ParallelAnimation {
+        id: funcPickerHideAnim
+        NumberAnimation { target: funcPickerView; property: "scale";   from: 1.0;  to: 0.9; duration: 160; easing.type: Easing.InQuad }
+        NumberAnimation { target: funcPickerView; property: "opacity"; from: 1;    to: 0;   duration: 180; easing.type: Easing.InQuad }
+        onFinished: { funcPickerView.scale = 0.85; if (!dialController.funcPickerActive) overlay.visible = false; }
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // MAIN VIEW — function display
     // ════════════════════════════════════════════════════════════════════
@@ -269,7 +298,8 @@ Window {
         anchors.fill: parent
         scale: 0.85
         opacity: 0
-        visible: !dialController.pickerActive || pickerView.opacity < 0.05
+        visible: (!dialController.pickerActive  || pickerView.opacity < 0.05) &&
+                 (!dialController.funcPickerActive || funcPickerView.opacity < 0.05)
 
         // Back circle (gauge ring)
         Item {
@@ -399,6 +429,94 @@ Window {
                         color: index === dialController.selectedFunctionIndex
                                ? overlay.accentColor : overlay.mutedColor
                     }
+                }
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // FUNCTION PICKER — shown on double press
+    // ════════════════════════════════════════════════════════════════════
+    Item {
+        id: funcPickerView
+        anchors.fill: parent
+        scale: 0.85
+        opacity: 0
+        visible: opacity > 0.01
+
+        Rectangle {
+            width: 340; height: 340
+            anchors.centerIn: parent
+            radius: width / 2
+            color: overlay.dimBgColor
+        }
+
+        Rectangle {
+            width: 260; height: 260
+            anchors.centerIn: parent
+            radius: width / 2
+            color: overlay.surfaceColor
+            border.color: overlay.accentColor
+            border.width: 2
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 6
+
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: dialController.currentProfileName
+                    font.family: overlay.monoFont
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                    color: overlay.mutedColor
+                }
+
+                ListView {
+                    id: funcPickerList
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    model: dialController.currentFunctions
+                    clip: true
+                    currentIndex: dialController.funcPickerIndex
+                    highlightMoveDuration: 120
+                    highlightRangeMode: ListView.StrictlyEnforceRange
+                    preferredHighlightBegin: height / 2 - 16
+                    preferredHighlightEnd:   height / 2 + 16
+
+                    highlight: Rectangle {
+                        color: overlay.accentColor
+                        radius: 4
+                        opacity: 0.25
+                    }
+
+                    delegate: Item {
+                        width: funcPickerList.width
+                        height: 32
+                        Text {
+                            width: parent.width
+                            height: parent.height
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            text: modelData.label || modelData.id || ""
+                            font.family: overlay.monoFont
+                            font.pixelSize: 13
+                            font.weight: index === funcPickerList.currentIndex ? Font.Bold : Font.Normal
+                            color: index === funcPickerList.currentIndex
+                                   ? overlay.accentColor : overlay.fgColor
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "Rotate to browse · Press to select"
+                    font.family: overlay.monoFont
+                    font.pixelSize: 9
+                    color: overlay.mutedColor
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
                 }
             }
         }

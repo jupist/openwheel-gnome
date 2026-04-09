@@ -54,6 +54,98 @@ ApplicationWindow {
 
     Timer { id: statusClear; interval: 3000; onTriggered: statusText.text = "" }
 
+    // ── Help popup ────────────────────────────────────────────────────────────
+    Popup {
+        id: helpPopup
+        modal: true; anchors.centerIn: Overlay.overlay
+        width: 380; padding: 0
+        background: Rectangle { color: bg2; border.color: border; radius: 3 }
+
+        ColumnLayout {
+            anchors.left: parent.left; anchors.right: parent.right
+            spacing: 0
+
+            // Title bar
+            Rectangle {
+                Layout.fillWidth: true; height: 36; color: bg3
+                Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: border }
+                RowLayout {
+                    anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 6
+                    Text { text: "how to use profiles"; font.family: mono; font.pixelSize: 12; color: fg; Layout.fillWidth: true }
+                    Rectangle {
+                        width: 28; height: 28; color: "transparent"; radius: 2
+                        Text { anchors.centerIn: parent; text: "×"; font.family: mono; font.pixelSize: 15; color: fg2 }
+                        MouseArea { anchors.fill: parent; onClicked: helpPopup.close() }
+                    }
+                }
+            }
+
+            // Content
+            ColumnLayout {
+                Layout.margins: 16; spacing: 14
+
+                Repeater {
+                    model: [
+                        {
+                            heading: "creating a profile",
+                            body:    "Click + in the sidebar to create a new profile. Give it a name — ideally matching the app it's for (e.g. \"Blender\"). Each profile is activated automatically when that app is focused, if you set a window class or process name in the JSON."
+                        },
+                        {
+                            heading: "adding functions",
+                            body:    "With a profile selected, click '+ add' under functions. Each function is one thing the dial does — e.g. 'Brush Size' or 'Timeline Scrub'. Give it a label, then set the clockwise (↻), counter-clockwise (↺), and click (●) actions."
+                        },
+                        {
+                            heading: "action types",
+                            body:    "keyboard — injects a key + optional modifiers (ctrl, shift, alt, super).\nrepeat — same but fires repeatedly while held.\nscroll — sends a mouse scroll event, use the delta field.\ndbus — calls a D-Bus method directly.\ncommand — runs a shell command."
+                        },
+                        {
+                            heading: "threshold",
+                            body:    "How many degrees the dial must turn before the action fires. Lower = more sensitive. 1° fires on every tick; 5° requires a deliberate turn. Scroll and window switching ignore this."
+                        },
+                        {
+                            heading: "editing & saving",
+                            body:    "Expand a function card to edit it. Changes are not applied until you click Save (or press Ctrl+S). The title bar shows * when there are unsaved changes. Closing without saving discards all edits."
+                        },
+                        {
+                            heading: "deleting a profile",
+                            body:    "Select the profile in the sidebar and click − to delete it. Built-in profiles (System, Blender, Krita…) cannot be deleted — only disabled via the dot on the right of each row."
+                        }
+                    ]
+
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 3
+                        Text {
+                            text: modelData.heading
+                            font.family: mono; font.pixelSize: 11; font.weight: Font.Bold
+                            color: fg
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: modelData.body
+                            font.family: mono; font.pixelSize: 10; color: fg2
+                            wrapMode: Text.WordWrap
+                            lineHeight: 1.35
+                        }
+                    }
+                }
+
+                // Close button
+                Rectangle {
+                    Layout.alignment: Qt.AlignRight
+                    height: 24; width: closeHelpLabel.implicitWidth + 20
+                    color: "transparent"; border.color: border; radius: 2
+                    Text { id: closeHelpLabel; anchors.centerIn: parent; text: "close"; font.family: mono; font.pixelSize: 11; color: fg2 }
+                    MouseArea {
+                        anchors.fill: parent; hoverEnabled: true
+                        onEntered: parent.border.color = fg2
+                        onExited:  parent.border.color = border
+                        onClicked: helpPopup.close()
+                    }
+                }
+            }
+        }
+    }
+
     // Use allProfiles() so disabled profiles are also shown in the settings UI.
     function realProfiles() {
         return dialController.allProfiles()
@@ -292,6 +384,17 @@ ApplicationWindow {
                     font.family: mono; font.pixelSize: 12
                     color: fg2
                     Layout.fillWidth: true
+                }
+                // help
+                Rectangle {
+                    width: 36; height: 36; color: "transparent"
+                    Text { anchors.centerIn: parent; text: "?"; font.family: mono; font.pixelSize: 14; color: fg2 }
+                    MouseArea {
+                        anchors.fill: parent; hoverEnabled: true
+                        onEntered: parent.color = bg3
+                        onExited:  parent.color = "transparent"
+                        onClicked: helpPopup.open()
+                    }
                 }
                 // close
                 Rectangle {
@@ -532,44 +635,6 @@ ApplicationWindow {
                             background: Rectangle { color: bg3; border.color: border; radius: 2 }
                             Layout.preferredWidth: 180
                             onTextEdited: { if (profileData) { profileData.displayName = text; markDirty() } }
-                        }
-
-                        // Window switcher preset
-                        Rectangle {
-                            height: 24; width: wsText.implicitWidth + 20
-                            color: "transparent"; border.color: border; radius: 2
-                            Text {
-                                id: wsText
-                                anchors.centerIn: parent
-                                text: "+ window switcher"
-                                font.family: mono; font.pixelSize: 11; color: fg2
-                            }
-                            MouseArea {
-                                anchors.fill: parent; hoverEnabled: true
-                                onEntered: parent.border.color = fg2
-                                onExited:  parent.border.color = border
-                                onClicked: {
-                                    if (!profileData) return
-                                    var def = { type: "keyboard", keys: "", modifiers: [], rotationThreshold: 15, accelerationEnabled: false, delta: 0 }
-                                    var f = {
-                                        id: "window-switcher", label: "Window Switcher",
-                                        iconName: "", type: "discrete", unit: "",
-                                        clockwiseAction:        Object.assign({}, def, { keys: "tab", modifiers: ["alt"],         sticky: true }),
-                                        counterClockwiseAction: Object.assign({}, def, { keys: "tab", modifiers: ["alt","shift"], sticky: true }),
-                                        clickAction:            Object.assign({}, def, { keys: "super", modifiers: [] })
-                                    }
-                                    var funcs = (profileData.functions || []).filter(function(x) { return x.id !== f.id })
-                                    funcs.push(f)
-                                    profileData.functions = funcs
-                                    var layout = (profileData.defaultMenuLayout || []).filter(function(x) { return x !== f.id })
-                                    layout.push(f.id)
-                                    profileData.defaultMenuLayout = layout
-                                    profileData = JSON.parse(JSON.stringify(profileData))
-                                    markDirty()
-                                    statusText.text = "window switcher added."
-                                    statusClear.restart()
-                                }
-                            }
                         }
 
                         Item { Layout.fillWidth: true }

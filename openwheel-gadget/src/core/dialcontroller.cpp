@@ -259,6 +259,41 @@ void DialController::confirmProfilePicker()
     Q_EMIT pickerActiveChanged(0);
 }
 
+// ── Function picker ───────────────────────────────────────────────────────────
+
+void DialController::openFunctionPicker()
+{
+    if (m_funcPickerActive) return;
+    if (m_pickerActive) closeProfilePicker(); // mutually exclusive
+    const Profile *profile = m_profileManager->getCurrentProfile();
+    if (!profile || profile->getMenuFunctions().isEmpty()) return;
+    m_funcPickerIndex = m_selectedIndex;
+    m_funcPickerTickAccum = 0;
+    m_funcPickerActive = 1;
+    Q_EMIT funcPickerActiveChanged(1);
+    qDebug() << "Function picker opened at index" << m_funcPickerIndex;
+}
+
+void DialController::closeFunctionPicker()
+{
+    if (!m_funcPickerActive) return;
+    m_funcPickerActive = 0;
+    Q_EMIT funcPickerActiveChanged(0);
+}
+
+void DialController::confirmFunctionPicker()
+{
+    if (!m_funcPickerActive) return;
+    m_funcPickerActive = 0;
+    Q_EMIT funcPickerActiveChanged(0);
+    if (m_funcPickerIndex != m_selectedIndex) {
+        m_selectedIndex = m_funcPickerIndex;
+        updateCurrentFunction();
+        Q_EMIT selectionChanged(m_selectedIndex);
+    }
+    qDebug() << "Function picker confirmed index" << m_selectedIndex;
+}
+
 void DialController::setActiveProfile(const QString &profileId)
 {
     if (profileId.isEmpty()) return;
@@ -288,6 +323,26 @@ QString DialController::loadPersistedProfile() const
 void DialController::onRotationChanged(int delta)
 {
     qDebug() << "DialController: Rotation changed:" << delta;
+
+    // Function picker steals rotation when open.
+    if (m_funcPickerActive) {
+        const Profile *profile = m_profileManager->getCurrentProfile();
+        if (!profile) return;
+        const int total = profile->getMenuFunctions().size();
+        if (total <= 0) return;
+        m_funcPickerTickAccum += delta;
+        while (m_funcPickerTickAccum >= 2) {
+            m_funcPickerIndex = (m_funcPickerIndex + 1) % total;
+            Q_EMIT funcPickerIndexChanged(m_funcPickerIndex);
+            m_funcPickerTickAccum -= 2;
+        }
+        while (m_funcPickerTickAccum <= -2) {
+            m_funcPickerIndex = (m_funcPickerIndex - 1 + total) % total;
+            Q_EMIT funcPickerIndexChanged(m_funcPickerIndex);
+            m_funcPickerTickAccum += 2;
+        }
+        return;
+    }
 
     // Profile picker steals rotation when open — 2 ticks per step to prevent
     // accidental selection when the user's hand is unsteady.
@@ -339,6 +394,8 @@ void DialController::onButtonPressed()
             m_clickCount = 0; // swallow pending click
             if (m_pickerActive) {
                 confirmProfilePicker();
+            } else if (m_funcPickerActive) {
+                confirmFunctionPicker();
             } else {
                 m_pickerTickAccum = 0;
                 openProfilePicker();
@@ -354,7 +411,11 @@ void DialController::onButtonReleased()
 
     m_buttonHeld = false;
 
-    // Release any sticky modifier keys held during rotation (window switcher etc.)
+    // Capture whether sticky modifiers were held BEFORE releasing them.
+    // If they were, the button release is a "confirm selection" gesture (e.g. window
+    // switcher: releasing Alt selects the window). We must not also fire the click
+    // action or it would trigger an extra keystroke.
+    const bool stickyWasHeld = m_actionExecutor->isStickyActive();
     m_actionExecutor->releaseStickyModifiers();
 
     // Was this a long press? Timer is no longer active if it already fired.
@@ -366,9 +427,22 @@ void DialController::onButtonReleased()
         return;
     }
 
-    // If picker is open, a short press confirms the selection.
+    // If function picker is open, a short press confirms the selection.
+    if (m_funcPickerActive) {
+        confirmFunctionPicker();
+        return;
+    }
+
+    // If profile picker is open, a short press confirms the selection.
     if (m_pickerActive) {
         confirmProfilePicker();
+        return;
+    }
+
+    // Sticky modifier was held (e.g. window switcher): releasing it already
+    // confirmed the selection — don't also fire a click action.
+    if (stickyWasHeld) {
+        m_rotatedDuringHold = false;
         return;
     }
 
@@ -399,9 +473,9 @@ void DialController::onButtonReleased()
     } else if (m_clickCount >= 2) {
         m_clickDecisionTimer->stop();
         m_clickCount = 0;
-        selectNext();
-        Q_EMIT functionCycled();
-        qDebug() << "Double click -> next function";
+        m_funcPickerTickAccum = 0;
+        openFunctionPicker();
+        qDebug() << "Double click -> function picker";
     }
 }
 
@@ -811,8 +885,10 @@ QVariantMap DialController::functionToVariantMap(const Function &func) const
     const bool isScroll =
         func.clockwiseAction.type      == ActionConfig::Type::MouseScroll ||
         func.counterClockwiseAction.type == ActionConfig::Type::MouseScroll;
+    const bool isSticky =
+        func.clockwiseAction.sticky || func.counterClockwiseAction.sticky;
     const bool needsEscape =
-        isScroll ||
+        isScroll || isSticky ||
         kFocusEscapeKeys.contains(func.clockwiseAction.keys) ||
         kFocusEscapeKeys.contains(func.counterClockwiseAction.keys);
     map[QStringLiteral("needsFocusEscape")] = needsEscape;
