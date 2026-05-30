@@ -73,7 +73,32 @@
         "delta": 3,
         "rotationThreshold": 3
       }
+    },
+    {
+      "id": "window-switcher",
+      "label": "Windows",
+      "iconName": "window-switcher",
+      "type": "discrete",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "tab",
+        "modifiers": ["alt"],
+        "sticky": true,
+        "rotationThreshold": 3
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "tab",
+        "modifiers": ["alt", "shift"],
+        "sticky": true,
+        "rotationThreshold": 3
+      },
+      "clickAction": {
+        "type": "keyboard",
+        "keys": "tab",
+        "modifiers": ["alt"]
+      }
     }
   ],
-  "defaultMenuLayout": ["volume", "brightness", "zoom", "scroll"]
+  "defaultMenuLayout": ["volume", "brightness", "zoom", "scroll", "window-switcher"]
 }

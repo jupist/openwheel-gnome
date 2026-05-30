@@ -1,0 +1,72 @@
+{
+  "id": "music",
+  "displayName": "Music",
+  "iconPath": "audio-headphones",
+  "enabled": true,
+  "isDefault": false,
+  "processNames": ["spotify", "rhythmbox", "vlc", "clementine", "audacious", "lollypop", "strawberry", "elisa", "cmus", "mpv"],
+  "windowClassPattern": "^(Spotify|spotify)$",
+  "functions": [
+    {
+      "id": "track-skip",
+      "label": "Skip Track",
+      "iconName": "media-skip-forward",
+      "type": "discrete",
+      "unit": "",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "XF86AudioNext",
+        "modifiers": [],
+        "rotationThreshold": 3,
+        "accelerationEnabled": false
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "XF86AudioPrev",
+        "modifiers": [],
+        "rotationThreshold": 3,
+        "accelerationEnabled": false
+      },
+      "clickAction": {
+        "type": "keyboard",
+        "keys": "XF86AudioPlay",
+        "modifiers": [],
+        "rotationThreshold": 3,
+        "accelerationEnabled": false
+      }
+    },
+    {
+      "id": "volume",
+      "label": "Volume",
+      "iconName": "audio-volume-medium",
+      "type": "continuous",
+      "minValue": 0,
+      "maxValue": 100,
+      "unit": "%",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "XF86AudioRaiseVolume",
+        "modifiers": [],
+        "rotationThreshold": 5,
+        "accelerationEnabled": true
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "XF86AudioLowerVolume",
+        "modifiers": [],
+        "rotationThreshold": 5,
+        "accelerationEnabled": true
+      },
+      "clickAction": {
+        "type": "keyboard",
+        "keys": "XF86AudioMute",
+        "modifiers": [],
+        "rotationThreshold": 5,
+        "accelerationEnabled": false
+      }
+    }
+  ],
+  "functionGroups": [],
+  "defaultMenuLayout": ["track-skip", "volume"],
+  "defaultFunctionId": "track-skip"
+}

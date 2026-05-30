@@ -1,0 +1,69 @@
+{
+  "id": "workspaces",
+  "displayName": "Workspaces",
+  "iconPath": "preferences-desktop-display",
+  "enabled": true,
+  "isDefault": false,
+  "processNames": [],
+  "functions": [
+    {
+      "id": "workspace-switch",
+      "label": "Switch Workspace",
+      "iconName": "user-desktop",
+      "type": "discrete",
+      "unit": "",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "pagedown",
+        "modifiers": ["super"],
+        "rotationThreshold": 5,
+        "accelerationEnabled": false
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "pageup",
+        "modifiers": ["super"],
+        "rotationThreshold": 5,
+        "accelerationEnabled": false
+      },
+      "clickAction": {
+        "type": "keyboard",
+        "keys": "a",
+        "modifiers": ["super"],
+        "rotationThreshold": 5,
+        "accelerationEnabled": false
+      }
+    },
+    {
+      "id": "window-move",
+      "label": "Move Window",
+      "iconName": "window-new",
+      "type": "discrete",
+      "unit": "",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "pagedown",
+        "modifiers": ["super", "shift"],
+        "rotationThreshold": 5,
+        "accelerationEnabled": false
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "pageup",
+        "modifiers": ["super", "shift"],
+        "rotationThreshold": 5,
+        "accelerationEnabled": false
+      },
+      "clickAction": {
+        "type": "keyboard",
+        "keys": "d",
+        "modifiers": ["super"],
+        "rotationThreshold": 5,
+        "accelerationEnabled": false
+      }
+    }
+  ],
+  "functionGroups": [],
+  "defaultMenuLayout": ["workspace-switch", "window-move"],
+  "defaultFunctionId": "workspace-switch"
+}

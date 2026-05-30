@@ -2,17 +2,53 @@
 // SPDX-FileCopyrightText: 2025 OpenWheel Contributors
 
 #include <QApplication>
+#include <QLockFile>
+#include <QStandardPaths>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
 #include <QQmlContext>
 #include <QQuickStyle>
+#include <QQuickImageProvider>
 #include <QIcon>
+#include <QMenu>
+#include <QSystemTrayIcon>
 #include <QDebug>
 
-#ifndef NO_KDE_FRAMEWORKS
+// ---------------------------------------------------------------------------
+// IconImageProvider — serves QIcon::fromTheme() images to QML via
+// the "image://icon/<freedesktop-name>" URI scheme.  Works on both GNOME
+// and KDE because QIcon::fromTheme() honours XDG_DATA_DIRS.
+// ---------------------------------------------------------------------------
+class IconImageProvider : public QQuickImageProvider
+{
+public:
+    IconImageProvider()
+        : QQuickImageProvider(QQuickImageProvider::Pixmap) {}
+
+    QPixmap requestPixmap(const QString &id, QSize *size, const QSize &requestedSize) override
+    {
+        const int dim = (requestedSize.width() > 0) ? requestedSize.width() : 32;
+        QIcon icon = QIcon::fromTheme(id);
+        if (icon.isNull()) {
+            // Return a transparent placeholder so the Image item stays hidden
+            // (its `visible` property is gated on status === Image.Ready).
+            QPixmap px(dim, dim);
+            px.fill(Qt::transparent);
+            if (size) *size = px.size();
+            return px;
+        }
+        QPixmap px = icon.pixmap(dim, dim);
+        if (size) *size = px.size();
+        return px;
+    }
+};
+
+#ifdef HAVE_KF6
 #include <KAboutData>
 #include <KLocalizedString>
 #include <KDBusService>
 #else
+// Minimal i18n shim so code compiles without KDE Frameworks.
 #define i18n(x) QString(x)
 #endif
 
@@ -22,65 +58,98 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
+    // Prevent multiple simultaneous instances — two instances produce double overlays.
+    const QString lockPath = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation)
+                             + QStringLiteral("/openwheel-gadget.lock");
+    QLockFile instanceLock(lockPath);
+    if (!instanceLock.tryLock(100)) {
+        qWarning() << "openwheel-gadget: another instance is already running — exiting.";
+        return 0;
+    }
+
     QApplication::setApplicationName(QStringLiteral("openwheel-gadget"));
-    QApplication::setApplicationDisplayName(i18n("OpenWheel Gadget"));
+    QApplication::setApplicationDisplayName(QStringLiteral("OpenWheel Gadget"));
+    QApplication::setOrganizationName(QStringLiteral("openwheel"));
     QApplication::setOrganizationDomain(QStringLiteral("openwheel.org"));
     QApplication::setApplicationVersion(QStringLiteral("0.1.0"));
 
-#ifndef NO_KDE_FRAMEWORKS
+#ifdef HAVE_KF6
     KAboutData aboutData(
         QStringLiteral("openwheel-gadget"),
         i18n("OpenWheel Gadget"),
         QStringLiteral("0.1.0"),
-        i18n("Creative dial controller for KDE Plasma"),
+        i18n("Creative dial controller"),
         KAboutLicense::GPL_V3,
         i18n("© 2025 OpenWheel Contributors")
     );
-
     aboutData.addAuthor(
         i18n("OpenWheel Contributors"),
         i18n("Developer"),
         QStringLiteral("[email protected]"),
         QStringLiteral("https://github.com/fredaime/openwheel")
     );
-
     KAboutData::setApplicationData(aboutData);
     QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("input-dial")));
 
+    // Enforce single-instance on KDE.
     KDBusService service(KDBusService::Unique);
-#else
-    qDebug() << "Running without KDE Frameworks (limited features)";
 #endif
 
-#ifndef NO_KDE_FRAMEWORKS
-    QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
-#else
+    // Use the Fusion style everywhere — it has no KDE/GNOME-specific deps
+    // and renders consistently on both desktops. Kirigami is no longer
+    // imported in the QML (colours switched to plain Qt palette queries).
     QQuickStyle::setStyle(QStringLiteral("Fusion"));
-#endif
 
-    // Create and initialize the dial controller
     DialController controller;
     controller.initialize();
 
-    // Load the overlay UI
     QQmlApplicationEngine engine;
+    engine.addImageProvider(QStringLiteral("icon"), new IconImageProvider());
     engine.rootContext()->setContextProperty(QStringLiteral("dialController"), &controller);
     engine.load(QUrl(QStringLiteral("qrc:/ui/OverlayWindow.qml")));
 
     if (engine.rootObjects().isEmpty()) {
         qWarning() << "Failed to load overlay QML";
+        return 1;
+    }
+
+    // Settings window is declared inside OverlayWindow.qml as a persistent
+    // child — dialController.settingsRequested() is handled entirely in QML.
+
+    // ── System tray icon ─────────────────────────────────────────────────────
+    if (QSystemTrayIcon::isSystemTrayAvailable()) {
+        auto *trayIcon = new QSystemTrayIcon(&app);
+        trayIcon->setIcon(QIcon::fromTheme(QStringLiteral("input-dial"),
+                                           QIcon::fromTheme(QStringLiteral("preferences-devices-launchpad"))));
+        trayIcon->setToolTip(QStringLiteral("OpenWheel Gadget"));
+
+        auto *trayMenu = new QMenu();
+        auto *settingsAction = trayMenu->addAction(QStringLiteral("Settings…"));
+        QObject::connect(settingsAction, &QAction::triggered, &controller, &DialController::openSettings);
+        trayMenu->addSeparator();
+        auto *quitAction = trayMenu->addAction(QStringLiteral("Quit"));
+        QObject::connect(quitAction, &QAction::triggered, &app, &QApplication::quit);
+
+        trayIcon->setContextMenu(trayMenu);
+        trayIcon->show();
+
+        // Left-click also opens settings
+        QObject::connect(trayIcon, &QSystemTrayIcon::activated,
+                         [&controller](QSystemTrayIcon::ActivationReason reason) {
+                             if (reason == QSystemTrayIcon::Trigger) {
+                                 controller.openSettings();
+                             }
+                         });
+    } else {
+        qDebug() << "System tray not available — use dialController.openSettings() from QML";
     }
 
     qDebug() << "============================================";
     qDebug() << "OpenWheel Gadget v0.1.0";
     qDebug() << "============================================";
-    qDebug() << "Status: Listening for dial events...";
-    qDebug() << "Current profile:" << controller.currentProfileName();
-    qDebug() << "";
-    qDebug() << "Rotate the dial to trigger actions.";
-    qDebug() << "Press the dial button to show/hide overlay.";
-    qDebug() << "";
-    qDebug() << "Press Ctrl+C to quit.";
+    qDebug() << "Profile:" << controller.currentProfileName();
+    qDebug() << "Long-press the dial button to pick a profile.";
+    qDebug() << "Double-click to cycle functions.";
     qDebug() << "============================================";
 
     return app.exec();

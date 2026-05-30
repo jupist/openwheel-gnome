@@ -1,59 +1,80 @@
 {
   "id": "blender",
   "displayName": "Blender",
-  "processNames": ["blender", "blender.exe"],
-  "windowClassPattern": "^Blender$",
-
+  "enabled": false,
+  "processNames": ["blender"],
+  "isDefault": false,
   "functions": [
-    {
-      "id": "zoom",
-      "label": "Zoom",
-      "iconName": "zoom-in",
-      "type": "continuous",
-      "clockwiseAction": {
-        "type": "mouseScroll",
-        "delta": 1,
-        "rotationThreshold": 10
-      },
-      "counterClockwiseAction": {
-        "type": "mouseScroll",
-        "delta": -1,
-        "rotationThreshold": 10
-      }
-    },
     {
       "id": "timeline",
       "label": "Timeline",
-      "iconName": "timeline-use-zone-on",
-      "type": "continuous",
+      "iconName": "media-seek-forward",
+      "type": "discrete",
       "clockwiseAction": {
         "type": "keyboard",
         "keys": "right",
-        "rotationThreshold": 15
+        "rotationThreshold": 3
       },
       "counterClockwiseAction": {
         "type": "keyboard",
         "keys": "left",
-        "rotationThreshold": 15
+        "rotationThreshold": 3
+      },
+      "clickAction": {
+        "type": "keyboard",
+        "keys": "space"
       }
     },
     {
-      "id": "undo",
+      "id": "undo-redo",
       "label": "Undo / Redo",
       "iconName": "edit-undo",
       "type": "discrete",
       "clockwiseAction": {
         "type": "keyboard",
         "keys": "z",
-        "modifiers": ["ctrl", "shift"]
+        "modifiers": ["ctrl", "shift"],
+        "rotationThreshold": 5
       },
       "counterClockwiseAction": {
         "type": "keyboard",
         "keys": "z",
-        "modifiers": ["ctrl"]
+        "modifiers": ["ctrl"],
+        "rotationThreshold": 5
+      }
+    },
+    {
+      "id": "zoom",
+      "label": "Zoom",
+      "iconName": "zoom-in",
+      "type": "discrete",
+      "clockwiseAction": {
+        "type": "keyboard",
+        "keys": "ZoomIn",
+        "rotationThreshold": 5
+      },
+      "counterClockwiseAction": {
+        "type": "keyboard",
+        "keys": "ZoomOut",
+        "rotationThreshold": 5
+      }
+    },
+    {
+      "id": "scroll",
+      "label": "Scroll",
+      "iconName": "view-scroll-vertical",
+      "type": "discrete",
+      "clockwiseAction": {
+        "type": "mouseScroll",
+        "delta": -3,
+        "rotationThreshold": 3
+      },
+      "counterClockwiseAction": {
+        "type": "mouseScroll",
+        "delta": 3,
+        "rotationThreshold": 3
       }
     }
   ],
-
-  "defaultMenuLayout": ["zoom", "timeline", "undo"]
+  "defaultMenuLayout": ["timeline", "undo-redo", "zoom", "scroll"]
 }

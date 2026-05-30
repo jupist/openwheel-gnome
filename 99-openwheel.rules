@@ -1,0 +1,8 @@
+# OpenWheel — ASUS ProArt dial (I2C HID, ASUS2020)
+# Grant read access to all users so the daemon can run without root.
+SUBSYSTEM=="hidraw", ATTRS{name}=="ASUS2020:00 0B05:0220", MODE="0666"
+
+# uinput — needed for Wayland keystroke/scroll injection.
+# MODE 0660 with GROUP input means any member of the input group can use it.
+# This is equivalent to the ydotool/dotool udev rule used on many distros.
+KERNEL=="uinput", GROUP="input", MODE="0666", OPTIONS+="static_node=uinput"
