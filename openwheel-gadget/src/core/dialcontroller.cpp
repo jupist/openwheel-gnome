@@ -909,7 +909,7 @@ QVariantMap DialController::functionToVariantMap(const Function &func) const
     map[QStringLiteral("iconName")] = func.iconName;
     map[QStringLiteral("type")] = (func.type == Function::Type::Continuous) ? QStringLiteral("continuous") : QStringLiteral("discrete");
     map[QStringLiteral("unit")] = func.unit;
-    map[QStringLiteral("suppressOverlay")] = func.suppressOverlay ? 1 : 0;
+    map[QStringLiteral("suppressOverlay")] = func.suppressOverlay;
 
     if (func.minValue.has_value()) {
         map[QStringLiteral("minValue")] = func.minValue.value();

@@ -165,7 +165,10 @@ Function Function::fromJson(const QJsonObject &json)
         func.clickAction = ActionConfig::fromJson(json[QStringLiteral("clickAction")].toObject());
     }
 
-    func.suppressOverlay = json[QStringLiteral("suppressOverlay")].toBool(false);
+    QJsonValue suppressVal = json[QStringLiteral("suppressOverlay")];
+    func.suppressOverlay = suppressVal.toBool(false) ||
+                           (suppressVal.toInt(0) != 0) ||
+                           (suppressVal.toString().compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
 
     return func;
 }

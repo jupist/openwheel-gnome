@@ -162,7 +162,7 @@ Rectangle {
             Rectangle {
                 id: suppressToggle
                 width: 32; height: 18; radius: 9
-                property bool on: functionData ? (functionData.suppressOverlay === 1 || functionData.suppressOverlay === true) : false
+                property bool on: functionData ? (functionData.suppressOverlay === 1 || functionData.suppressOverlay === true || functionData.suppressOverlay === "true") : false
                 color: on ? accent : "#444"
                 Behavior on color { ColorAnimation { duration: 120 } }
                 Rectangle {
@@ -198,7 +198,7 @@ Rectangle {
             iconName: functionData.iconName || "",
             type:  typeBox.currentIndex === 1 ? "discrete" : "continuous",
             unit:  unitField ? unitField.text : (functionData.unit || ""),
-            suppressOverlay: suppressToggle.on ? 1 : 0,
+            suppressOverlay: suppressToggle.on ? true : false,
             clockwiseAction:        cwEditor.actionData,
             counterClockwiseAction: ccwEditor.actionData,
             clickAction:            clickEditor.actionData
