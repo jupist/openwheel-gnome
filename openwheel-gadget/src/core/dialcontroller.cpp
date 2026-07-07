@@ -84,12 +84,20 @@ void DialController::setupConnections()
     // Rotation handler connections
     connect(m_rotationHandler.get(), &RotationHandler::actionTriggered,
             this, &DialController::onActionTriggered);
+    // Only forward rotationTick to QML when the overlay should be shown.
+    // Scroll and zoom functions suppress the overlay entirely.
     connect(m_rotationHandler.get(), &RotationHandler::rotationTick,
-            this, &DialController::rotationTick);
+            this, [this]() {
+                if (!m_currentFunctionNeedsEscape)
+                    Q_EMIT rotationTick();
+            });
     // RotationHandler::valueChanged carries raw accumulated degrees — don't
     // forward it to QML.  Real system values come from ActionExecutor instead.
     connect(m_rotationHandler.get(), &RotationHandler::adjustingChanged,
-            this, &DialController::adjustingChanged);
+            this, [this](int adjusting) {
+                if (!m_currentFunctionNeedsEscape)
+                    Q_EMIT adjustingChanged(adjusting);
+            });
 
     // When the action executor reports a real system value, update the UI
     connect(m_actionExecutor.get(), &ActionExecutor::systemValueChanged,
@@ -562,6 +570,21 @@ void DialController::updateCurrentFunction()
     // Query real system value for the new function
     m_actionExecutor->queryCurrentValue(func.clockwiseAction.keys);
     m_rotationHandler->reset();
+
+    // Update the escape flag so QML can reliably suppress the overlay.
+    static const QStringList kFocusEscapeKeys = {
+        QStringLiteral("ZoomIn"), QStringLiteral("ZoomOut")
+    };
+    const bool needsEscape =
+        func.clockwiseAction.type        == ActionConfig::Type::MouseScroll ||
+        func.counterClockwiseAction.type == ActionConfig::Type::MouseScroll ||
+        func.clockwiseAction.sticky      || func.counterClockwiseAction.sticky ||
+        kFocusEscapeKeys.contains(func.clockwiseAction.keys) ||
+        kFocusEscapeKeys.contains(func.counterClockwiseAction.keys);
+    if (needsEscape != m_currentFunctionNeedsEscape) {
+        m_currentFunctionNeedsEscape = needsEscape;
+        Q_EMIT currentFunctionNeedsEscapeChanged();
+    }
 
     Q_EMIT functionChanged();
 }

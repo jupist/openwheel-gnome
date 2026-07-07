@@ -45,6 +45,9 @@ class DialController : public QObject
     // Current track title from MPRIS (empty string when not in music profile or no player).
     Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY mediaTitleChanged)
     Q_PROPERTY(QString mediaArtist READ mediaArtist NOTIFY mediaTitleChanged)
+    // True when the active function should suppress the overlay (scroll, zoom, etc.)
+    // Uses int instead of bool to avoid the X11 Bool macro conflict.
+    Q_PROPERTY(int currentFunctionNeedsEscape READ currentFunctionNeedsEscape NOTIFY currentFunctionNeedsEscapeChanged)
 
 public:
     explicit DialController(QObject *parent = nullptr);
@@ -64,6 +67,7 @@ public:
     QString currentUnit() const;
     qreal currentMinValue() const;
     qreal currentMaxValue() const;
+    bool currentFunctionNeedsEscape() const { return m_currentFunctionNeedsEscape; }
 
     // Profile picker
     QVariantList availableProfiles() const;
@@ -135,6 +139,7 @@ Q_SIGNALS:
     void pressToActivateChanged();  // bool arg omitted — X11 defines Bool as a macro
     void daemonAutostartChanged();
     void mediaTitleChanged();
+    void currentFunctionNeedsEscapeChanged();
 
 private Q_SLOTS:
     void onRotationChanged(int delta);
@@ -189,4 +194,7 @@ private:
     // MPRIS track info — updated after every media key action.
     QString m_mediaTitle;
     QString m_mediaArtist;
+
+    // Cached escape flag for the currently active function.
+    bool m_currentFunctionNeedsEscape = false;
 };

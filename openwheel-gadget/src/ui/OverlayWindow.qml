@@ -55,15 +55,9 @@ Window {
     // Suppresses rotation ticks from re-showing the overlay mid-escape.
     property bool inFocusEscape: false
 
-    // True when the currently selected function needs the overlay to stay
-    // hidden during use (e.g. zoom — keystrokes must go to the focused app).
-    readonly property bool currentFunctionNeedsEscape: {
-        var funcs = dialController.currentFunctions;
-        var idx   = dialController.selectedFunctionIndex;
-        return (funcs.length > 0 && idx < funcs.length)
-               ? (funcs[idx].needsFocusEscape === true)
-               : false;
-    }
+    // Bound directly to the C++ Q_PROPERTY (int, 1=needs escape, 0=normal).
+    // Reliably notified when the active function changes.
+    readonly property bool currentFunctionNeedsEscape: dialController.currentFunctionNeedsEscape !== 0
 
     property real normalizedValue: {
         if (isDiscrete) return 0;
@@ -97,6 +91,13 @@ Window {
 
         function onRotationTick() {
             if (dialController.pickerActive) return;
+            // Immediately hide overlay for scroll/zoom — calling hideAnim.start()
+            // every tick would restart the animation from opacity:1 each time,
+            // preventing it from ever completing.
+            if (currentFunctionNeedsEscape) {
+                overlay.visible = false;
+                return;
+            }
             pulseAnim.start();
             hideTimer.restart();
             if (!overlay.visible) {
@@ -124,6 +125,7 @@ Window {
 
         function onAdjustingChanged() {
             if (dialController.pickerActive) return;
+            if (currentFunctionNeedsEscape) return;
             if (dialController.isAdjusting) {
                 hideTimer.stop();
                 if (!overlay.visible) {

@@ -1,4 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
+
+# Default install prefix to /usr so udev and systemd paths land in the right
+# place. Must be set before project() to take effect. Override with
+# -DCMAKE_INSTALL_PREFIX=<path> if needed.
+if(NOT DEFINED CMAKE_INSTALL_PREFIX)
+    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Install path prefix" FORCE)
+endif()
+
 project(openwheel VERSION 0.1.0 LANGUAGES C CXX)
 
 # Set default build type
