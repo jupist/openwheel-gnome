@@ -7,6 +7,8 @@
 #include <QObject>
 #include <QString>
 #include <QSharedPointer>
+#include <QFileSystemWatcher>
+#include <QTimer>
 
 /**
  * Manages loading, caching, and switching between profiles
@@ -110,6 +112,9 @@ Q_SIGNALS:
     void profilesLoaded();
     void profilesChanged();
 
+private Q_SLOTS:
+    void onWatcherTriggered();
+
 private:
     void loadProfilesFromDirectory(const QString &dirPath);
     QString getDefaultProfileId() const;
@@ -117,4 +122,7 @@ private:
     QHash<QString, QSharedPointer<Profile>> m_profiles;
     QString m_currentProfileId;
     QString m_defaultProfileId;
+
+    QFileSystemWatcher m_watcher;
+    QTimer m_reloadTimer;
 };

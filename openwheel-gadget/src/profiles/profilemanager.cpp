@@ -13,6 +13,22 @@
 ProfileManager::ProfileManager(QObject *parent)
     : QObject(parent)
 {
+    m_reloadTimer.setSingleShot(true);
+    m_reloadTimer.setInterval(200);
+    connect(&m_reloadTimer, &QTimer::timeout, this, [this]() {
+        qDebug() << "Hot reloading profiles due to filesystem change...";
+        reloadProfiles();
+    });
+
+    connect(&m_watcher, &QFileSystemWatcher::fileChanged,
+            this, &ProfileManager::onWatcherTriggered);
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged,
+            this, &ProfileManager::onWatcherTriggered);
+}
+
+void ProfileManager::onWatcherTriggered()
+{
+    m_reloadTimer.start();
 }
 
 ProfileManager::~ProfileManager() = default;
@@ -43,6 +59,12 @@ void ProfileManager::loadProfiles()
         }
     }
 
+    // Ensure the writable user profile directory exists and is watched for new files
+    QString userDir = userProfileDir();
+    if (QDir().mkpath(userDir) && !m_watcher.directories().contains(userDir)) {
+        m_watcher.addPath(userDir);
+    }
+
     // Find the default profile
     m_defaultProfileId = getDefaultProfileId();
 
@@ -64,12 +86,20 @@ void ProfileManager::loadProfiles()
 void ProfileManager::loadProfilesFromDirectory(const QString &dirPath)
 {
     QDir dir(dirPath);
+    if (!m_watcher.directories().contains(dirPath)) {
+        m_watcher.addPath(dirPath);
+    }
+
     QStringList filters;
     filters << QStringLiteral("*.json");
 
     QFileInfoList files = dir.entryInfoList(filters, QDir::Files);
     for (const QFileInfo &fileInfo : files) {
-        loadProfile(fileInfo.absoluteFilePath());
+        QString absPath = fileInfo.absoluteFilePath();
+        if (!m_watcher.files().contains(absPath)) {
+            m_watcher.addPath(absPath);
+        }
+        loadProfile(absPath);
     }
 }
 
