@@ -41,6 +41,7 @@ class DialController : public QObject
     Q_PROPERTY(int pickerIndex READ pickerIndex NOTIFY pickerIndexChanged)
     // Global behaviour (int not bool — X11 headers define Bool as a macro)
     Q_PROPERTY(int pressToActivate READ pressToActivate WRITE setPressToActivate NOTIFY pressToActivateChanged)
+    Q_PROPERTY(int daemonAutostart READ daemonAutostart WRITE setDaemonAutostart NOTIFY daemonAutostartChanged)
     // Current track title from MPRIS (empty string when not in music profile or no player).
     Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY mediaTitleChanged)
     Q_PROPERTY(QString mediaArtist READ mediaArtist NOTIFY mediaTitleChanged)
@@ -72,6 +73,9 @@ public:
     // Global behaviour (int not bool — X11 headers define Bool as a macro)
     int pressToActivate() const { return m_pressToActivate ? 1 : 0; }
     void setPressToActivate(int enabled);
+
+    int daemonAutostart() const;
+    void setDaemonAutostart(int enabled);
 
     QString mediaTitle()  const { return m_mediaTitle; }
     QString mediaArtist() const { return m_mediaArtist; }
@@ -129,6 +133,7 @@ Q_SIGNALS:
     void pickerActiveChanged(int active);
     void pickerIndexChanged(int index);
     void pressToActivateChanged();  // bool arg omitted — X11 defines Bool as a macro
+    void daemonAutostartChanged();
     void mediaTitleChanged();
 
 private Q_SLOTS:

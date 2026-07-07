@@ -15,6 +15,7 @@
 #include <QDebug>
 #include <QSet>
 #include <QSettings>
+#include <QProcess>
 
 DialController::DialController(QObject *parent)
     : QObject(parent)
@@ -651,6 +652,33 @@ void DialController::setPressToActivate(int enabled)
     prefs.setValue(QStringLiteral("pressToActivate"), b);
     Q_EMIT pressToActivateChanged();
     qDebug() << "Press-to-activate:" << (b ? "on" : "off");
+}
+
+int DialController::daemonAutostart() const
+{
+    QProcess process;
+    process.start(QStringLiteral("systemctl"), QStringList() << QStringLiteral("--user") << QStringLiteral("is-enabled") << QStringLiteral("openwheel-daemon"));
+    process.waitForFinished(500);
+    QString output = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+    return (output == QStringLiteral("enabled")) ? 1 : 0;
+}
+
+void DialController::setDaemonAutostart(int enabled)
+{
+    const bool b = (enabled != 0);
+    if (daemonAutostart() == (b ? 1 : 0)) return;
+
+    QString cmd = b ? QStringLiteral("enable") : QStringLiteral("disable");
+    QProcess::execute(QStringLiteral("systemctl"), QStringList() << QStringLiteral("--user") << cmd << QStringLiteral("openwheel-daemon"));
+
+    if (b) {
+        QProcess::startDetached(QStringLiteral("systemctl"), QStringList() << QStringLiteral("--user") << QStringLiteral("start") << QStringLiteral("openwheel-daemon"));
+    } else {
+        QProcess::startDetached(QStringLiteral("systemctl"), QStringList() << QStringLiteral("--user") << QStringLiteral("stop") << QStringLiteral("openwheel-daemon"));
+    }
+
+    Q_EMIT daemonAutostartChanged();
+    qDebug() << "Daemon autostart:" << (b ? "enabled" : "disabled");
 }
 
 QVariantList DialController::allProfiles() const
