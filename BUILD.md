@@ -1,24 +1,26 @@
+e
+
 # OpenWheel — Build & Install Guide
 
 ## Dependencies
 
 ### Required
 
-| Package | Fedora | Ubuntu/Debian | Arch |
-|---|---|---|---|
-| CMake 3.16+ | `cmake` | `cmake` | `cmake` |
-| C/C++20 compiler | `gcc-c++` | `build-essential` | `base-devel` |
-| pkg-config | `pkgconf` | `pkg-config` | `pkgconf` |
-| libdbus-1 | `dbus-devel` | `libdbus-1-dev` | `dbus` |
-| Qt 6 Core/Gui/Widgets/DBus | `qt6-qtbase-devel` | `qt6-base-dev` | `qt6-base` |
-| Qt 6 Qml/Quick/Controls2 | `qt6-qtdeclarative-devel` | `qt6-declarative-dev` | `qt6-declarative` |
+| Package                    | Fedora                      | Ubuntu/Debian           | Arch                |
+| -------------------------- | --------------------------- | ----------------------- | ------------------- |
+| CMake 3.16+                | `cmake`                   | `cmake`               | `cmake`           |
+| C/C++20 compiler           | `gcc-c++`                 | `build-essential`     | `base-devel`      |
+| pkg-config                 | `pkgconf`                 | `pkg-config`          | `pkgconf`         |
+| libdbus-1                  | `dbus-devel`              | `libdbus-1-dev`       | `dbus`            |
+| Qt 6 Core/Gui/Widgets/DBus | `qt6-qtbase-devel`        | `qt6-base-dev`        | `qt6-base`        |
+| Qt 6 Qml/Quick/Controls2   | `qt6-qtdeclarative-devel` | `qt6-declarative-dev` | `qt6-declarative` |
 
 ### Optional
 
-| Package | Purpose |
-|---|---|
-| `libX11-devel` + `libXtst-devel` | X11 XTest fallback (X11 sessions only) |
-| KDE Frameworks 6 (`extra-cmake-modules`, `libkf6coreaddons-dev`, `libkf6dbusaddons-dev`, `libkf6i18n-dev`) | Single-instance guard on KDE |
+| Package                                                                                                            | Purpose                                |
+| ------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| `libX11-devel` + `libXtst-devel`                                                                               | X11 XTest fallback (X11 sessions only) |
+| KDE Frameworks 6 (`extra-cmake-modules`, `libkf6coreaddons-dev`, `libkf6dbusaddons-dev`, `libkf6i18n-dev`) | Single-instance guard on KDE           |
 
 ## Building
 
@@ -35,11 +37,11 @@ cd build && ctest --output-on-failure && cd ..
 
 ### Build options
 
-| Option | Default | Description |
-|---|---|---|
-| `BUILD_DAEMON` | ON | Build `asus_wheel` daemon |
-| `BUILD_GADGET` | ON | Build `openwheel-gadget` Qt app |
-| `BUILD_TESTS` | ON | Build CTest suite |
+| Option               | Default | Description                      |
+| -------------------- | ------- | -------------------------------- |
+| `BUILD_DAEMON`     | ON      | Build`asus_wheel` daemon       |
+| `BUILD_GADGET`     | ON      | Build`openwheel-gadget` Qt app |
+| `BUILD_TESTS`      | ON      | Build CTest suite                |
 | `CMAKE_BUILD_TYPE` | Release | Debug / Release / RelWithDebInfo |
 
 ### Faster builds with Ninja
@@ -59,15 +61,15 @@ sudo cmake --install build --prefix /usr
 
 What gets installed:
 
-| Path | Contents |
-|---|---|
-| `/usr/bin/asus_wheel` | Daemon executable |
-| `/usr/bin/openwheel-gadget` | Gadget executable |
-| `/usr/share/openwheel/profiles/` | Bundled JSON profiles |
-| `/usr/share/applications/openwheel-gadget.desktop` | App menu entry |
-| `/etc/xdg/autostart/openwheel-gadget.desktop` | Gadget autostart on login |
-| `/usr/lib/udev/rules.d/99-openwheel.rules` | Device access rules |
-| `/usr/lib/systemd/user/openwheel-daemon.service` | Daemon systemd user service |
+| Path                                                 | Contents                    |
+| ---------------------------------------------------- | --------------------------- |
+| `/usr/bin/asus_wheel`                              | Daemon executable           |
+| `/usr/bin/openwheel-gadget`                        | Gadget executable           |
+| `/usr/share/openwheel/profiles/`                   | Bundled JSON profiles       |
+| `/usr/share/applications/openwheel-gadget.desktop` | App menu entry              |
+| `/etc/xdg/autostart/openwheel-gadget.desktop`      | Gadget autostart on login   |
+| `/usr/lib/udev/rules.d/99-openwheel.rules`         | Device access rules         |
+| `/usr/lib/systemd/user/openwheel-daemon.service`   | Daemon systemd user service |
 
 ### Local install (no root)
 
