@@ -42,6 +42,8 @@ class DialController : public QObject
     // Global behaviour (int not bool — X11 headers define Bool as a macro)
     Q_PROPERTY(int pressToActivate READ pressToActivate WRITE setPressToActivate NOTIFY pressToActivateChanged)
     Q_PROPERTY(int daemonAutostart READ daemonAutostart WRITE setDaemonAutostart NOTIFY daemonAutostartChanged)
+    Q_PROPERTY(int showDemoWheel READ showDemoWheel WRITE setShowDemoWheel NOTIFY showDemoWheelChanged)
+    Q_PROPERTY(int buttonHeld READ buttonHeld NOTIFY buttonHeldChanged)
     // Current track title from MPRIS (empty string when not in music profile or no player).
     Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY mediaTitleChanged)
     Q_PROPERTY(QString mediaArtist READ mediaArtist NOTIFY mediaTitleChanged)
@@ -80,6 +82,10 @@ public:
 
     int daemonAutostart() const;
     void setDaemonAutostart(int enabled);
+
+    int showDemoWheel() const { return m_showDemoWheel ? 1 : 0; }
+    void setShowDemoWheel(int show);
+    int buttonHeld() const { return m_buttonHeld ? 1 : 0; }
 
     QString mediaTitle()  const { return m_mediaTitle; }
     QString mediaArtist() const { return m_mediaArtist; }
@@ -143,6 +149,9 @@ Q_SIGNALS:
     void pickerIndexChanged(int index);
     void pressToActivateChanged();  // bool arg omitted — X11 defines Bool as a macro
     void daemonAutostartChanged();
+    void showDemoWheelChanged();
+    void buttonHeldChanged();
+    void rawRotationTick(int delta);
     void mediaTitleChanged();
     void currentFunctionNeedsEscapeChanged();
 
@@ -202,4 +211,5 @@ private:
 
     // Cached escape flag for the currently active function.
     bool m_currentFunctionNeedsEscape = false;
+    bool m_showDemoWheel = false;
 };

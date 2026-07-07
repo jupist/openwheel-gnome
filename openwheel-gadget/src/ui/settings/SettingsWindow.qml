@@ -494,6 +494,34 @@ ApplicationWindow {
                             }
                         }
                     }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 12; Layout.rightMargin: 10; Layout.bottomMargin: 8
+                        spacing: 8
+                        Text {
+                            Layout.fillWidth: true
+                            text: "show wheel"
+                            font.family: mono; font.pixelSize: 11; color: fg
+                            wrapMode: Text.WordWrap
+                        }
+                        Rectangle {
+                            width: 32; height: 18; radius: 9
+                            color: dialController.showDemoWheel ? accent : "#444"
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            Rectangle {
+                                width: 14; height: 14; radius: 7
+                                x: dialController.showDemoWheel ? parent.width - width - 2 : 2
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: dialController.showDemoWheel ? bg : "#aaa"
+                                Behavior on x { NumberAnimation { duration: 120 } }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: dialController.showDemoWheel = dialController.showDemoWheel ? 0 : 1
+                            }
+                        }
+                    }
                     Rectangle { Layout.fillWidth: true; height: 1; color: border }
 
                     // ── Profiles section ───────────────────────────────────

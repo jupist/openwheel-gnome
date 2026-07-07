@@ -4,5 +4,6 @@
         <file>settings/SettingsWindow.qml</file>
         <file>settings/FunctionEditor.qml</file>
         <file>settings/ActionEditor.qml</file>
+        <file>DemoWheelWindow.qml</file>
     </qresource>
 </RCC>

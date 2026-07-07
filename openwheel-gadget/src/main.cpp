@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QStringLiteral("icon"), new IconImageProvider());
     engine.rootContext()->setContextProperty(QStringLiteral("dialController"), &controller);
     engine.load(QUrl(QStringLiteral("qrc:/ui/OverlayWindow.qml")));
+    engine.load(QUrl(QStringLiteral("qrc:/ui/DemoWheelWindow.qml")));
 
     if (engine.rootObjects().isEmpty()) {
         qWarning() << "Failed to load overlay QML";

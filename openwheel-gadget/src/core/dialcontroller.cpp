@@ -46,6 +46,7 @@ void DialController::initialize()
     // Restore press-to-activate preference.
     QSettings prefs(QStringLiteral("openwheel"), QStringLiteral("gadget"));
     m_pressToActivate = prefs.value(QStringLiteral("pressToActivate"), true).toBool();
+    m_showDemoWheel = prefs.value(QStringLiteral("showDemoWheel"), false).toBool();
 
     // Start monitoring (no-op on GNOME; signals only fire via manual picker).
     m_appMatcher->startMonitoring();
@@ -333,6 +334,7 @@ QString DialController::loadPersistedProfile() const
 void DialController::onRotationChanged(int delta)
 {
     qDebug() << "DialController: Rotation changed:" << delta;
+    Q_EMIT rawRotationTick(delta);
 
     // Profile or function picker steals rotation when open — 2 ticks per step to prevent
     // accidental selection when the user's hand is unsteady.
@@ -377,6 +379,7 @@ void DialController::onButtonPressed()
     qDebug() << "DialController: Button pressed";
 
     m_buttonHeld = true;
+    Q_EMIT buttonHeldChanged();
     m_rotatedDuringHold = false;
     m_longPressTriggered = false;
 
@@ -412,6 +415,7 @@ void DialController::onButtonReleased()
     qDebug() << "DialController: Button released";
 
     m_buttonHeld = false;
+    Q_EMIT buttonHeldChanged();
 
     // Release any sticky modifier keys held during rotation (window switcher etc.)
     m_actionExecutor->releaseStickyModifiers();
@@ -703,6 +707,17 @@ void DialController::setDaemonAutostart(int enabled)
 
     Q_EMIT daemonAutostartChanged();
     qDebug() << "Daemon autostart:" << (b ? "enabled" : "disabled");
+}
+
+void DialController::setShowDemoWheel(int show)
+{
+    const bool b = (show != 0);
+    if (m_showDemoWheel == b) return;
+    m_showDemoWheel = b;
+    QSettings prefs(QStringLiteral("openwheel"), QStringLiteral("gadget"));
+    prefs.setValue(QStringLiteral("showDemoWheel"), b);
+    Q_EMIT showDemoWheelChanged();
+    qDebug() << "Show demo wheel:" << (b ? "on" : "off");
 }
 
 QVariantList DialController::allProfiles() const
