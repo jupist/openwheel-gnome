@@ -18,7 +18,11 @@ Window {
     width: 380
     height: 380
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.WindowTransparentForInput
+    // Qt.Tool + WindowDoesNotAcceptFocus: creates a standalone top-level that
+    // does not steal keyboard focus. Qt.ToolTip requires a transient parent
+    // (popup) which we don't have, so it fails on Wayland.
+    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+         | Qt.WindowDoesNotAcceptFocus
     visible: false
 
     x: (Screen.width - width) / 2
@@ -46,6 +50,20 @@ Window {
     // Track info from MPRIS (empty when not in music mode or no player running)
     property string trackTitle:  dialController.mediaTitle
     property string trackArtist: dialController.mediaArtist
+
+    // True while the overlay is hidden for a focus-escape (zoom injection).
+    // Suppresses rotation ticks from re-showing the overlay mid-escape.
+    property bool inFocusEscape: false
+
+    // True when the currently selected function needs the overlay to stay
+    // hidden during use (e.g. zoom — keystrokes must go to the focused app).
+    readonly property bool currentFunctionNeedsEscape: {
+        var funcs = dialController.currentFunctions;
+        var idx   = dialController.selectedFunctionIndex;
+        return (funcs.length > 0 && idx < funcs.length)
+               ? (funcs[idx].needsFocusEscape === true)
+               : false;
+    }
 
     property real normalizedValue: {
         if (isDiscrete) return 0;
@@ -85,6 +103,7 @@ Window {
                 overlay.visible = true;
                 showAnim.start();
             }
+            overlay.raise();
         }
 
         function onValueChanged(value) {
@@ -111,6 +130,7 @@ Window {
                     overlay.visible = true;
                     showAnim.start();
                 }
+                overlay.raise();
             } else {
                 hideTimer.restart();
             }

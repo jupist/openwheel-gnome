@@ -838,5 +838,23 @@ QVariantMap DialController::functionToVariantMap(const Function &func) const
         map[QStringLiteral("maxValue")] = func.maxValue.value();
     }
 
+    // Tell the overlay whether this function should keep the HUD hidden
+    // while in use — either because the keystroke needs focus on another
+    // window (zoom: Ctrl+=) or because covering content defeats the purpose
+    // (scroll: the user needs to see what they're scrolling through).
+    static const QStringList kFocusEscapeKeys = {
+        QStringLiteral("ZoomIn"), QStringLiteral("ZoomOut")
+    };
+    const bool isScroll =
+        func.clockwiseAction.type      == ActionConfig::Type::MouseScroll ||
+        func.counterClockwiseAction.type == ActionConfig::Type::MouseScroll;
+    const bool isSticky =
+        func.clockwiseAction.sticky || func.counterClockwiseAction.sticky;
+    const bool needsEscape =
+        isScroll || isSticky ||
+        kFocusEscapeKeys.contains(func.clockwiseAction.keys) ||
+        kFocusEscapeKeys.contains(func.counterClockwiseAction.keys);
+    map[QStringLiteral("needsFocusEscape")] = needsEscape;
+
     return map;
 }

@@ -1,4 +1,4 @@
-# OpenWheel
+# OpenWheel (GNOME fork)
 
 OpenWheel turns the ASUS ProArt Dial (and compatible ASUS HID rotary devices) into a fully-customisable system control dial on Linux. Works natively on **GNOME/Wayland** and KDE Plasma.
 
@@ -24,7 +24,7 @@ The daemon also exposes `InjectKey` / `InjectScroll` D-Bus methods backed by a `
 - **Floating overlay** — segmented gauge ring, smooth animations, profile picker on long press
 - **KDE Plasma compatible** — KDE Frameworks 6 is fully optional; when present it enables single-instance enforcement
 
-## Prerequisites
+---
 
 | Dependency | Required | Notes |
 |---|---|---|
@@ -110,7 +110,7 @@ Click the tray icon (or right-click → Settings) to open the profile editor:
 
 Edited profiles are saved to `~/.local/share/openwheel/profiles/` and survive package upgrades.
 
-## Profiles
+## Using the dial
 
 Bundled profiles (in `/usr/share/openwheel/profiles/` after install):
 
@@ -124,7 +124,57 @@ User-created profiles live in `~/.local/share/openwheel/profiles/` and take prec
 
 ### Profile JSON format
 
-```json
+### Function picker (double-press)
+
+| Gesture | Effect |
+|---|---|
+| Rotate | Browse functions in the current profile |
+| Press | Confirm and switch to selected function |
+
+### Profile picker (long-press)
+
+| Gesture | Effect |
+|---|---|
+| Rotate | Browse profiles (2 ticks per step) |
+| Press | Confirm and switch to selected profile |
+| Select "⚙ Settings" | Open the Settings window |
+
+---
+
+## Settings window
+
+Open via the profile picker (long-press the dial, scroll to "⚙ Settings", press to confirm).
+
+- **`?` help button** — step-by-step guide to creating, editing, and deleting profiles
+- **Behaviour** — toggle press-to-activate on/off; toggle daemon autostart on login
+- **Profile list** — the dot on the right of each profile enables/disables it in the picker; disabled profiles are still editable
+- **Function editor** — label, type (continuous/discrete), unit; expand a card to edit
+- **Action editor** — keyboard shortcut, mouse scroll, D-Bus call, or shell command; **Test** button fires the action immediately
+- **Unsaved changes** — the title bar shows `*` when changes are pending; closing without saving discards all edits (Ctrl+S to save)
+
+Changes are saved to `~/.local/share/openwheel/profiles/` and survive package upgrades.
+
+---
+
+## Bundled profiles
+
+| Profile | Enabled by default | Functions |
+|---|---|---|
+| **System** | Yes | Volume, Brightness, Zoom, Scroll, Window Switcher |
+| **Music** | Yes | Skip Track (CW=next, CCW=prev; click=play/pause), Volume, Seek (CW=+10s, CCW=−10s via `playerctl`) |
+| **Workspaces** | Yes | Switch Workspace (Super+PgDn/Up) |
+| **Blender** | No | Timeline scrub, Undo/Redo, Zoom, Scroll |
+| **Krita** | No | Brush Size (]/[ keys), Undo/Redo, Zoom, Scroll |
+
+Enable Blender or Krita in Settings → click the dot next to the profile name.
+
+---
+
+## Profile JSON format
+
+Profiles live in `/usr/share/openwheel/profiles/` (system) or `~/.local/share/openwheel/profiles/` (user — takes precedence).
+
+```jsonc
 {
   "id": "my-app",
   "displayName": "My App",
@@ -174,7 +224,13 @@ openwheel-gadget/src/
       WindowSwitcherPreset.qml — Alt+Tab preset button
 ```
 
-## Compatibility
+| Type | Required fields | Description |
+|---|---|---|
+| `keyboard` | `keys` | Single keystroke per threshold crossing |
+| `keyboardRepeat` | `keys` | Repeated keystrokes proportional to rotation |
+| `mouseScroll` | `delta` | Scroll wheel simulation |
+| `dbus` | `dbusService`, `dbusPath`, `dbusInterface`, `dbusMethod`, `dbusArgs` | D-Bus method call |
+| `command` | `command` | Shell command (run via `/bin/sh -c`) |
 
 Tested with:
 - ASUS ProArt Dial (I2C HID, `ASUS2020`)
@@ -184,4 +240,4 @@ Tested with:
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+GPL-3.0-or-later — see [LICENSE](LICENSE).

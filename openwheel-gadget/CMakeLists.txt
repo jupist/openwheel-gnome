@@ -129,6 +129,11 @@ else()
     message(STATUS "Building without KDE Frameworks (GNOME-native default)")
 endif()
 
+# Expose project version to source so it isn't hardcoded as a string literal.
+target_compile_definitions(openwheel-gadget PRIVATE
+    OPENWHEEL_VERSION="${PROJECT_VERSION}"
+)
+
 # Link X11 libraries if available
 if(HAVE_X11)
     target_link_libraries(openwheel-gadget
@@ -165,19 +170,16 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/openwheel-gadget.desktop)
     )
 endif()
 
-# Install icon if it exists
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/openwheel-gadget.png)
-    install(FILES openwheel-gadget.png
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/128x128/apps
-        COMPONENT data
-    )
-endif()
+# Install SVG icon
+install(FILES openwheel.svg
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+    COMPONENT data
+)
 
-# Install headers for development
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openwheel-gadget
-    COMPONENT gadget-dev
-    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+# Install AppStream metadata
+install(FILES openwheel-gadget.metainfo.xml
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo
+    COMPONENT data
 )
 
 message(STATUS "")

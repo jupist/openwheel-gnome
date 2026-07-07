@@ -37,6 +37,8 @@ public:
     // Release any modifier keys held by a sticky-modifier action.
     // Must be called by DialController when the dial button is released.
     void releaseStickyModifiers();
+    // Returns true if sticky modifiers are currently held (call before releasing).
+    bool isStickyActive() const { return m_stickyActive; }
 
 Q_SIGNALS:
     void systemValueChanged(qreal value, qreal minValue, qreal maxValue);

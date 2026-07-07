@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.1
+Type=Application
+Name=OpenWheel
+GenericName=Dial Controller
+Comment=Creative dial controller for the ASUS ProArt Dial
+Exec=openwheel-gadget
+Icon=openwheel
+Categories=Utility;HardwareSettings;
+Keywords=dial;asus;proart;controller;input;
+StartupWMClass=openwheel-gadget
+StartupNotify=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=2

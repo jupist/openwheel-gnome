@@ -85,11 +85,12 @@ int main(int argc, char *argv[])
     aboutData.addAuthor(
         i18n("OpenWheel Contributors"),
         i18n("Developer"),
-        QStringLiteral("[email protected]"),
-        QStringLiteral("https://github.com/fredaime/openwheel")
+        QStringLiteral(""),
+        QStringLiteral("https://github.com/jupist/openwheel-gnome")
     );
     KAboutData::setApplicationData(aboutData);
-    QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("input-dial")));
+    QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("openwheel"),
+                                                 QIcon(QStringLiteral(":/ui/openwheel.svg"))));
 
     // Enforce single-instance on KDE.
     KDBusService service(KDBusService::Unique);
@@ -145,7 +146,7 @@ int main(int argc, char *argv[])
     }
 
     qDebug() << "============================================";
-    qDebug() << "OpenWheel Gadget v0.1.0";
+    qDebug() << "OpenWheel Gadget v" OPENWHEEL_VERSION;
     qDebug() << "============================================";
     qDebug() << "Profile:" << controller.currentProfileName();
     qDebug() << "Long-press the dial button to pick a profile.";
