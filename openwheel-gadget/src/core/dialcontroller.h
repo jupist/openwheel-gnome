@@ -41,6 +41,9 @@ class DialController : public QObject
     Q_PROPERTY(int pickerIndex READ pickerIndex NOTIFY pickerIndexChanged)
     // Global behaviour (int not bool — X11 headers define Bool as a macro)
     Q_PROPERTY(int pressToActivate READ pressToActivate WRITE setPressToActivate NOTIFY pressToActivateChanged)
+    // Current track title from MPRIS (empty string when not in music profile or no player).
+    Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY mediaTitleChanged)
+    Q_PROPERTY(QString mediaArtist READ mediaArtist NOTIFY mediaTitleChanged)
 
 public:
     explicit DialController(QObject *parent = nullptr);
@@ -63,12 +66,15 @@ public:
 
     // Profile picker
     QVariantList availableProfiles() const;
-    int isPickerActive() const { return m_pickerActive ? 1 : 0; }
+    int isPickerActive() const { return m_pickerActive; }
     int pickerIndex() const { return m_pickerIndex; }
 
     // Global behaviour (int not bool — X11 headers define Bool as a macro)
     int pressToActivate() const { return m_pressToActivate ? 1 : 0; }
     void setPressToActivate(int enabled);
+
+    QString mediaTitle()  const { return m_mediaTitle; }
+    QString mediaArtist() const { return m_mediaArtist; }
 
     Q_INVOKABLE void activate();
     Q_INVOKABLE void deactivate();
@@ -77,8 +83,9 @@ public:
     Q_INVOKABLE void selectPrevious();
     Q_INVOKABLE void confirmSelection();
 
-    // Manual profile picker (long-press).
+    // Manual profile picker (long-press) and function picker (double-click).
     Q_INVOKABLE void openProfilePicker();
+    Q_INVOKABLE void openFunctionPicker();
     Q_INVOKABLE void closeProfilePicker();
     Q_INVOKABLE void confirmProfilePicker();   // apply pickerIndex selection
     Q_INVOKABLE void setActiveProfile(const QString &profileId);
@@ -122,6 +129,7 @@ Q_SIGNALS:
     void pickerActiveChanged(int active);
     void pickerIndexChanged(int index);
     void pressToActivateChanged();  // bool arg omitted — X11 defines Bool as a macro
+    void mediaTitleChanged();
 
 private Q_SLOTS:
     void onRotationChanged(int delta);
@@ -158,6 +166,7 @@ private:
     int m_pickerIndex = 0;
     int m_pickerTickAccum = 0;   // accumulates raw ticks; picker advances every 3
     QTimer *m_longPressTimer = nullptr;
+    bool m_longPressTriggered = false;
     static constexpr int LONG_PRESS_MS = 600;
 
     // Press-to-activate state
@@ -171,4 +180,8 @@ private:
 
     // Global behaviour flag — persisted in QSettings.
     bool m_pressToActivate = true;
+
+    // MPRIS track info — updated after every media key action.
+    QString m_mediaTitle;
+    QString m_mediaArtist;
 };

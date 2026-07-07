@@ -13,6 +13,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QDebug>
+#include <QSet>
 #include <QSettings>
 
 DialController::DialController(QObject *parent)
@@ -93,6 +94,14 @@ void DialController::setupConnections()
     connect(m_actionExecutor.get(), &ActionExecutor::systemValueChanged,
             this, [this](qreal value, qreal, qreal) {
                 Q_EMIT valueChanged(value);
+            });
+
+    // When MPRIS reports new track info, update the exposed properties
+    connect(m_actionExecutor.get(), &ActionExecutor::mediaInfoChanged,
+            this, [this](const QString &title, const QString &artist) {
+                m_mediaTitle  = title;
+                m_mediaArtist = artist;
+                Q_EMIT mediaTitleChanged();
             });
 }
 
@@ -226,6 +235,21 @@ void DialController::openProfilePicker()
     qDebug() << "Profile picker opened";
 }
 
+void DialController::openFunctionPicker()
+{
+    if (m_pickerActive) return;
+
+    const QVariantList funcs = currentFunctions();
+    if (funcs.isEmpty()) return;
+
+    m_pickerIndex = (m_selectedIndex >= 0 && m_selectedIndex < funcs.size()) ? m_selectedIndex : 0;
+    m_pickerTickAccum = 0;
+    m_pickerActive = 2;
+    Q_EMIT pickerActiveChanged(2);
+    Q_EMIT pickerIndexChanged(m_pickerIndex);
+    qDebug() << "Function picker opened";
+}
+
 void DialController::closeProfilePicker()
 {
     if (!m_pickerActive) return;
@@ -237,6 +261,24 @@ void DialController::closeProfilePicker()
 void DialController::confirmProfilePicker()
 {
     if (!m_pickerActive) return;
+
+    if (m_pickerActive == 2) {
+        // Function picker mode
+        const QVariantList funcs = currentFunctions();
+        if (m_pickerIndex >= 0 && m_pickerIndex < funcs.size()) {
+            if (m_selectedIndex != m_pickerIndex) {
+                m_selectedIndex = m_pickerIndex;
+                Q_EMIT selectionChanged(m_selectedIndex);
+                updateCurrentFunction();
+            }
+        }
+        m_pickerActive = 0;
+        Q_EMIT pickerActiveChanged(0);
+        qDebug() << "Function picker confirmed index:" << m_selectedIndex;
+        return;
+    }
+
+    // Profile picker mode (m_pickerActive == 1)
     // Use the same enabled-only list the QML picker model was built from.
     const QStringList ids = enabledProfileIds();
     if (m_pickerIndex >= 0 && m_pickerIndex < ids.size()) {
@@ -283,10 +325,15 @@ void DialController::onRotationChanged(int delta)
 {
     qDebug() << "DialController: Rotation changed:" << delta;
 
-    // Profile picker steals rotation when open — 2 ticks per step to prevent
+    // Profile or function picker steals rotation when open — 2 ticks per step to prevent
     // accidental selection when the user's hand is unsteady.
     if (m_pickerActive) {
-        const int total = enabledProfileIds().size() + 1; // enabled profiles + settings sentinel
+        int total = 0;
+        if (m_pickerActive == 1) {
+            total = enabledProfileIds().size() + 1; // enabled profiles + settings sentinel
+        } else if (m_pickerActive == 2) {
+            total = currentFunctions().size();
+        }
         if (total <= 0) return;
         m_pickerTickAccum += delta;
         while (m_pickerTickAccum >= 2) {
@@ -322,24 +369,33 @@ void DialController::onButtonPressed()
 
     m_buttonHeld = true;
     m_rotatedDuringHold = false;
+    m_longPressTriggered = false;
 
-    // Start long-press timer. Fires only if no rotation happens within
-    // LONG_PRESS_MS — rotation cancels the timer in onRotationChanged.
-    if (!m_longPressTimer) {
-        m_longPressTimer = new QTimer(this);
-        m_longPressTimer->setSingleShot(true);
-        m_longPressTimer->setInterval(LONG_PRESS_MS);
-        connect(m_longPressTimer, &QTimer::timeout, this, [this]() {
-            m_clickCount = 0; // swallow pending click
-            if (m_pickerActive) {
-                confirmProfilePicker();
-            } else {
-                m_pickerTickAccum = 0;
-                openProfilePicker();
-            }
-        });
+    // If we are in the middle of a multi-click sequence (e.g. second press of double-click),
+    // stop the decision timer so it doesn't expire while the button is pressed down.
+    if (m_clickDecisionTimer && m_clickDecisionTimer->isActive()) {
+        m_clickDecisionTimer->stop();
     }
-    m_longPressTimer->start();
+
+    // Only start long-press timer if this is the initial press (not part of a multi-click).
+    if (m_clickCount == 0) {
+        if (!m_longPressTimer) {
+            m_longPressTimer = new QTimer(this);
+            m_longPressTimer->setSingleShot(true);
+            m_longPressTimer->setInterval(LONG_PRESS_MS);
+            connect(m_longPressTimer, &QTimer::timeout, this, [this]() {
+                m_longPressTriggered = true;
+                m_clickCount = 0; // swallow pending click
+                if (m_pickerActive) {
+                    confirmProfilePicker();
+                } else {
+                    m_pickerTickAccum = 0;
+                    openProfilePicker();
+                }
+            });
+        }
+        m_longPressTimer->start();
+    }
 }
 
 void DialController::onButtonReleased()
@@ -351,11 +407,10 @@ void DialController::onButtonReleased()
     // Release any sticky modifier keys held during rotation (window switcher etc.)
     m_actionExecutor->releaseStickyModifiers();
 
-    // Was this a long press? Timer is no longer active if it already fired.
-    const bool wasLongPress = m_longPressTimer && !m_longPressTimer->isActive();
     if (m_longPressTimer) m_longPressTimer->stop();
 
-    if (wasLongPress) {
+    if (m_longPressTriggered) {
+        m_longPressTriggered = false;
         // Already handled by the timer callback — nothing more to do.
         return;
     }
@@ -393,9 +448,8 @@ void DialController::onButtonReleased()
     } else if (m_clickCount >= 2) {
         m_clickDecisionTimer->stop();
         m_clickCount = 0;
-        selectNext();
-        Q_EMIT functionCycled();
-        qDebug() << "Double click -> next function";
+        openFunctionPicker();
+        qDebug() << "Double click -> open function picker";
     }
 }
 
@@ -446,6 +500,20 @@ void DialController::onActionTriggered(const ActionConfig &action, int repeatCou
     qDebug() << "DialController: Executing action" << repeatCount << "times";
 
     m_actionExecutor->executeAction(action, repeatCount);
+
+    // After a media key (skip/seek/play), refresh the track info display.
+    // queryMediaInfo runs in a background thread so it never blocks the
+    // event loop (which would break double-click / long-press timers).
+    static const QSet<QString> kMediaKeys = {
+        QStringLiteral("XF86AudioNext"),
+        QStringLiteral("XF86AudioPrev"),
+        QStringLiteral("XF86AudioPlay"),
+        QStringLiteral("XF86AudioPause"),
+        QStringLiteral("XF86AudioStop"),
+    };
+    if (kMediaKeys.contains(action.keys) || action.command.startsWith(QStringLiteral("playerctl"))) {
+        m_actionExecutor->queryMediaInfo(600);
+    }
 }
 
 void DialController::switchToProfile(const QString &profileId)

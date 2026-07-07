@@ -14,23 +14,20 @@
       "type": "discrete",
       "unit": "",
       "clockwiseAction": {
-        "type": "keyboard",
-        "keys": "XF86AudioNext",
-        "modifiers": [],
+        "type": "command",
+        "command": "playerctl -p spotify,%any next",
         "rotationThreshold": 3,
         "accelerationEnabled": false
       },
       "counterClockwiseAction": {
-        "type": "keyboard",
-        "keys": "XF86AudioPrev",
-        "modifiers": [],
+        "type": "command",
+        "command": "playerctl -p spotify,%any previous",
         "rotationThreshold": 3,
         "accelerationEnabled": false
       },
       "clickAction": {
-        "type": "keyboard",
-        "keys": "XF86AudioPlay",
-        "modifiers": [],
+        "type": "command",
+        "command": "playerctl -p spotify,%any play-pause",
         "rotationThreshold": 3,
         "accelerationEnabled": false
       }
@@ -64,9 +61,28 @@
         "rotationThreshold": 5,
         "accelerationEnabled": false
       }
+    },
+    {
+      "id": "seek",
+      "label": "Seek Track",
+      "iconName": "media-seek-forward",
+      "type": "discrete",
+      "unit": "",
+      "clockwiseAction": {
+        "type": "command",
+        "command": "playerctl -p spotify,%any position 5+",
+        "rotationThreshold": 1,
+        "accelerationEnabled": false
+      },
+      "counterClockwiseAction": {
+        "type": "command",
+        "command": "playerctl -p spotify,%any position 5-",
+        "rotationThreshold": 1,
+        "accelerationEnabled": false
+      }
     }
   ],
   "functionGroups": [],
-  "defaultMenuLayout": ["track-skip", "volume"],
+  "defaultMenuLayout": ["track-skip", "volume", "seek"],
   "defaultFunctionId": "track-skip"
 }

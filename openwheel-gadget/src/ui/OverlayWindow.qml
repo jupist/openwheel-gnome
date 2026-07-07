@@ -43,6 +43,9 @@ Window {
     property int selectedIndex: dialController.selectedFunctionIndex
     property bool isDiscrete: false
     property bool showDots: false
+    // Track info from MPRIS (empty when not in music mode or no player running)
+    property string trackTitle:  dialController.mediaTitle
+    property string trackArtist: dialController.mediaArtist
 
     property real normalizedValue: {
         if (isDiscrete) return 0;
@@ -115,6 +118,7 @@ Window {
 
         function onPickerActiveChanged(active) {
             if (active !== 0) {
+                pickerView.displayMode = active;
                 hideTimer.stop();
                 overlay.visible = true;
                 pickerShowAnim.start();
@@ -289,13 +293,39 @@ Window {
                     color: overlay.fgColor
                 }
 
+                // Value / track name display
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: isDiscrete ? "\u2014" : Math.round(currentValue) + unitText
+                    Layout.maximumWidth: 200
+                    // For discrete media functions: show track title if available, else em-dash.
+                    // For continuous functions: show the numeric value + unit.
+                    text: isDiscrete
+                          ? (trackTitle !== "" ? trackTitle : "\u2014")
+                          : Math.round(currentValue) + unitText
                     font.family: overlay.monoFont
-                    font.pixelSize: 30
+                    font.pixelSize: isDiscrete && trackTitle !== "" ? 13 : 30
                     font.weight: Font.Bold
                     color: overlay.accentColor
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
+                }
+
+                // Artist name — only shown when we have track info
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.maximumWidth: 200
+                    visible: isDiscrete && trackArtist !== ""
+                    text: trackArtist
+                    font.family: overlay.monoFont
+                    font.pixelSize: 11
+                    font.weight: Font.Normal
+                    color: overlay.mutedColor
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    maximumLineCount: 1
+                    elide: Text.ElideRight
                 }
             }
 
@@ -338,6 +368,7 @@ Window {
     // ════════════════════════════════════════════════════════════════════
     Item {
         id: pickerView
+        property int displayMode: 1
         anchors.fill: parent
         scale: 0.85
         opacity: 0
@@ -367,19 +398,19 @@ Window {
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: "Select Profile"
+                    text: pickerView.displayMode === 2 ? "Select Action" : "Select Profile"
                     font.family: overlay.monoFont
                     font.pixelSize: 12
                     font.weight: Font.Medium
                     color: overlay.mutedColor
                 }
 
-                // Profile list — keep current item centred in viewport
+                // Profile / Action list — keep current item centred in viewport
                 ListView {
                     id: pickerList
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    model: dialController.availableProfiles
+                    model: pickerView.displayMode === 2 ? dialController.currentFunctions : dialController.availableProfiles
                     clip: true
                     currentIndex: dialController.pickerIndex
                     highlightMoveDuration: 120
@@ -414,7 +445,7 @@ Window {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             topPadding: modelData.id === "__settings__" ? 3 : 0
-                            text: modelData.name
+                            text: modelData.name || modelData.label || ""
                             font.family: overlay.monoFont
                             font.pixelSize: modelData.id === "__settings__" ? 11 : 13
                             font.weight: index === pickerList.currentIndex ? Font.Bold : Font.Normal

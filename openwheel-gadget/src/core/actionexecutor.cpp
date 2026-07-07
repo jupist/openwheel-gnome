@@ -5,15 +5,18 @@
 // pulls in X11/Xlib.h on X11 builds, and X11 #defines macros like `None`
 // and `Always` which collide with Qt class members if included afterwards.
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusReply>
 #include <QDBusVariant>
+#include <QDBusArgument>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QThread>
+#include <QTimer>
 #include <QVariant>
 
 #include "actionexecutor.h"
@@ -664,6 +667,99 @@ void ActionExecutor::queryCurrentValue(const QString &keys)
     // Zoom and Scroll have no queryable value — no action needed
 }
 
+// ---------------------------------------------------------------------------
+// MPRIS media info — query the first running MPRIS2 player for track metadata
+// and emit mediaInfoChanged.  We enumerate session-bus names that start with
+// "org.mpris.MediaPlayer2." and read the Metadata property from the first one.
+// ---------------------------------------------------------------------------
+
+void ActionExecutor::queryMediaInfo(int delayMs)
+{
+    // After the delay, spin up a background thread for all D-Bus work.
+    // This keeps the main event loop completely free — no timer interference,
+    // no broken double-click or long-press detection on any profile.
+    QTimer::singleShot(delayMs, this, [this]() {
+        QThread *worker = QThread::create([this]() {
+            // Create a private per-thread D-Bus connection.
+            const QString busName = QStringLiteral("ow-mpris-%1")
+                .arg(reinterpret_cast<quintptr>(QThread::currentThread()));
+            QDBusConnection bus = QDBusConnection::connectToBus(
+                QDBusConnection::SessionBus, busName);
+            auto cleanup = [&]{ QDBusConnection::disconnectFromBus(busName); };
+
+            // List all MPRIS2 players.
+            QDBusMessage lm = QDBusMessage::createMethodCall(
+                QStringLiteral("org.freedesktop.DBus"),
+                QStringLiteral("/org/freedesktop/DBus"),
+                QStringLiteral("org.freedesktop.DBus"),
+                QStringLiteral("ListNames"));
+            QDBusMessage lr = bus.call(lm, QDBus::Block, 500);
+            if (lr.type() != QDBusMessage::ReplyMessage) { cleanup(); return; }
+
+            QStringList players;
+            for (const QString &n : lr.arguments().first().toStringList())
+                if (n.startsWith(QStringLiteral("org.mpris.MediaPlayer2.")))
+                    players << n;
+            if (players.isEmpty()) { cleanup(); return; }
+
+            // Prefer the Playing player, fall back to first.
+            QString active = players.first();
+            for (const QString &svc : players) {
+                QDBusMessage sm = QDBusMessage::createMethodCall(
+                    svc, QStringLiteral("/org/mpris/MediaPlayer2"),
+                    QStringLiteral("org.freedesktop.DBus.Properties"),
+                    QStringLiteral("Get"));
+                sm << QStringLiteral("org.mpris.MediaPlayer2.Player")
+                   << QStringLiteral("PlaybackStatus");
+                QDBusMessage sr = bus.call(sm, QDBus::Block, 300);
+                if (sr.type() == QDBusMessage::ReplyMessage &&
+                    !sr.arguments().isEmpty() &&
+                    sr.arguments().first().value<QDBusVariant>()
+                        .variant().toString() == QStringLiteral("Playing")) {
+                    active = svc; break;
+                }
+            }
+
+            // Read Metadata from the chosen player.
+            QDBusMessage gm = QDBusMessage::createMethodCall(
+                active, QStringLiteral("/org/mpris/MediaPlayer2"),
+                QStringLiteral("org.freedesktop.DBus.Properties"),
+                QStringLiteral("Get"));
+            gm << QStringLiteral("org.mpris.MediaPlayer2.Player")
+               << QStringLiteral("Metadata");
+            QDBusMessage gr = bus.call(gm, QDBus::Block, 500);
+            if (gr.type() != QDBusMessage::ReplyMessage ||
+                gr.arguments().isEmpty()) { cleanup(); return; }
+
+            QVariant inner = gr.arguments().first().value<QDBusVariant>().variant();
+            QVariantMap meta;
+            if (inner.canConvert<QDBusArgument>()) {
+                QDBusArgument arg = inner.value<QDBusArgument>();
+                arg >> meta;
+            } else {
+                meta = inner.toMap();
+            }
+
+            QString title  = meta.value(QStringLiteral("xesam:title")).toString().trimmed();
+            QVariant av    = meta.value(QStringLiteral("xesam:artist"));
+            QString artist = av.canConvert<QStringList>()
+                             ? av.toStringList().join(QStringLiteral(", ")).trimmed()
+                             : av.toString().trimmed();
+
+            qDebug() << "MPRIS:" << active << "|" << title << "-" << artist;
+
+            // Post result back to the main thread — safe across threads.
+            QMetaObject::invokeMethod(this, [this, title, artist]() {
+                Q_EMIT mediaInfoChanged(title, artist);
+            }, Qt::QueuedConnection);
+
+            cleanup();
+        });
+        connect(worker, &QThread::finished, worker, &QObject::deleteLater);
+        worker->start();
+    });
+}
+
 void ActionExecutor::executeCommand(const QString &command)
 {
     if (command.isEmpty()) {
@@ -671,7 +767,18 @@ void ActionExecutor::executeCommand(const QString &command)
     }
 
     qDebug() << "Executing command:" << command;
-    QProcess::startDetached(QStringLiteral("/bin/sh"), QStringList() << QStringLiteral("-c") << command);
+    QProcess process;
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    QString path = env.value(QStringLiteral("PATH"));
+    if (!path.contains(QStringLiteral("/usr/local/bin"))) path = QStringLiteral("/usr/local/bin:") + path;
+    if (!path.contains(QStringLiteral("/usr/bin"))) path = QStringLiteral("/usr/bin:") + path;
+    if (!path.contains(QStringLiteral("/bin"))) path = QStringLiteral("/bin:") + path;
+    if (!path.contains(QStringLiteral("/var/lib/snapd/snap/bin"))) path = QStringLiteral("/var/lib/snapd/snap/bin:") + path;
+    env.insert(QStringLiteral("PATH"), path);
+    process.setProcessEnvironment(env);
+    process.setProgram(QStringLiteral("/bin/sh"));
+    process.setArguments(QStringList() << QStringLiteral("-c") << command);
+    process.startDetached();
 }
 
 #ifdef HAVE_X11

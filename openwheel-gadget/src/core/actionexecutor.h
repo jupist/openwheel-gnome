@@ -30,6 +30,9 @@ public:
     void executeDBusCall(const ActionConfig &action);
     void executeCommand(const QString &command);
     void queryCurrentValue(const QString &keys);
+    // Query MPRIS for the currently playing track and emit mediaInfoChanged.
+    // delayMs: wait this long before querying (so the player updates after a skip).
+    void queryMediaInfo(int delayMs = 0);
 
     // Release any modifier keys held by a sticky-modifier action.
     // Must be called by DialController when the dial button is released.
@@ -37,6 +40,9 @@ public:
 
 Q_SIGNALS:
     void systemValueChanged(qreal value, qreal minValue, qreal maxValue);
+    // Emitted after a media action (skip/seek/play) with the new track info.
+    // Both strings are empty when no MPRIS player is available.
+    void mediaInfoChanged(const QString &title, const QString &artist);
 
 private:
     void detectSession();
