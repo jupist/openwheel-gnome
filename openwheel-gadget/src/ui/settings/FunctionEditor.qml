@@ -148,6 +148,37 @@ Rectangle {
         ActionEditor { id: ccwEditor;   width: parent.width; slotLabel: "↺"; actionData: functionData ? (functionData.counterClockwiseAction || defAction()) : defAction(); onActionChanged: emitUpdate() }
         ActionEditor { id: clickEditor; width: parent.width; slotLabel: "●"; actionData: functionData ? (functionData.clickAction           || defAction()) : defAction(); onActionChanged: emitUpdate() }
 
+        // ── Per-function overlay suppression toggle ───────────────────────────
+        Rectangle { width: parent.width; height: 1; color: bdr }
+        RowLayout {
+            width: parent.width
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                text: "hide overlay when active"
+                font.family: mono; font.pixelSize: 10; color: fg2
+                verticalAlignment: Text.AlignVCenter
+            }
+            Rectangle {
+                id: suppressToggle
+                width: 32; height: 18; radius: 9
+                property bool on: functionData ? (functionData.suppressOverlay === 1 || functionData.suppressOverlay === true) : false
+                color: on ? accent : "#444"
+                Behavior on color { ColorAnimation { duration: 120 } }
+                Rectangle {
+                    width: 14; height: 14; radius: 7
+                    x: suppressToggle.on ? parent.width - width - 2 : 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: suppressToggle.on ? bg : "#aaa"
+                    Behavior on x { NumberAnimation { duration: 120 } }
+                }
+                MouseArea {
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    onClicked: { suppressToggle.on = !suppressToggle.on; emitUpdate() }
+                }
+            }
+        }
+
         Item { height: 2 }
     }
 
@@ -167,6 +198,7 @@ Rectangle {
             iconName: functionData.iconName || "",
             type:  typeBox.currentIndex === 1 ? "discrete" : "continuous",
             unit:  unitField ? unitField.text : (functionData.unit || ""),
+            suppressOverlay: suppressToggle.on ? 1 : 0,
             clockwiseAction:        cwEditor.actionData,
             counterClockwiseAction: ccwEditor.actionData,
             clickAction:            clickEditor.actionData

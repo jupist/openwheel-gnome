@@ -67,6 +67,10 @@ struct Function {
     std::optional<qreal> maxValue;
     QString unit;                      // e.g., "px", "%"
 
+    // When true the overlay HUD is hidden while this function is active.
+    // Automatically true for mouseScroll/zoom actions; user can override.
+    bool suppressOverlay = false;
+
     ActionConfig clockwiseAction;
     ActionConfig counterClockwiseAction;
     ActionConfig clickAction;          // Optional click behavior

@@ -284,6 +284,47 @@ void ProfileManager::reloadProfiles()
     Q_EMIT profilesChanged();
 }
 
+QString ProfileManager::importProfile(const QString &filePath)
+{
+    Profile imported = Profile::fromFile(filePath);
+    if (imported.id.isEmpty()) {
+        qWarning() << "importProfile: failed to parse" << filePath;
+        return QString();
+    }
+
+    // Protect system profiles — reassign a new ID if there is a collision.
+    const Profile *existing = getProfile(imported.id);
+    if (existing && existing->isDefault) {
+        QString base = imported.id + QStringLiteral("-imported");
+        imported.id = base;
+        for (int i = 2; m_profiles.contains(imported.id); ++i)
+            imported.id = base + QStringLiteral("-") + QString::number(i);
+        qDebug() << "importProfile: ID collision with system profile, using" << imported.id;
+    }
+
+    // System/default flag must never be set by an imported file.
+    imported.isDefault = false;
+
+    if (!saveProfile(imported)) {
+        qWarning() << "importProfile: saveProfile failed for" << imported.id;
+        return QString();
+    }
+
+    qDebug() << "Imported profile:" << imported.id;
+    Q_EMIT profilesChanged();
+    return imported.id;
+}
+
+bool ProfileManager::exportProfile(const QString &profileId, const QString &filePath) const
+{
+    const Profile *p = getProfile(profileId);
+    if (!p) {
+        qWarning() << "exportProfile: profile not found:" << profileId;
+        return false;
+    }
+    return p->saveToFile(filePath);
+}
+
 QString ProfileManager::getDefaultProfileId() const
 {
     // Find the profile marked as default

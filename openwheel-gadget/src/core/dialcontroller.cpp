@@ -576,6 +576,7 @@ void DialController::updateCurrentFunction()
         QStringLiteral("ZoomIn"), QStringLiteral("ZoomOut")
     };
     const bool needsEscape =
+        func.suppressOverlay ||
         func.clockwiseAction.type        == ActionConfig::Type::MouseScroll ||
         func.counterClockwiseAction.type == ActionConfig::Type::MouseScroll ||
         func.clockwiseAction.sticky      || func.counterClockwiseAction.sticky ||
@@ -872,6 +873,33 @@ void DialController::testAction(const QVariantMap &actionData)
     m_actionExecutor->executeAction(action, 1);
 }
 
+QString DialController::importProfile(const QString &filePath)
+{
+    // QML FileDialog returns file:// URIs on some platforms — strip the scheme.
+    QString path = filePath;
+    if (path.startsWith(QStringLiteral("file://")))
+        path = path.mid(7);
+
+    const QString id = m_profileManager->importProfile(path);
+    if (!id.isEmpty())
+        Q_EMIT profilesChanged();
+    return id;
+}
+
+int DialController::exportProfile(const QString &profileId, const QString &filePath)
+{
+    QString path = filePath;
+    if (path.startsWith(QStringLiteral("file://")))
+        path = path.mid(7);
+
+    // Ensure .json extension
+    if (!path.endsWith(QStringLiteral(".json"), Qt::CaseInsensitive))
+        path += QStringLiteral(".json");
+
+    const bool ok = m_profileManager->exportProfile(profileId, path);
+    return ok ? 1 : 0;
+}
+
 QVariantMap DialController::functionToVariantMap(const Function &func) const
 {
     QVariantMap map;
@@ -881,6 +909,7 @@ QVariantMap DialController::functionToVariantMap(const Function &func) const
     map[QStringLiteral("iconName")] = func.iconName;
     map[QStringLiteral("type")] = (func.type == Function::Type::Continuous) ? QStringLiteral("continuous") : QStringLiteral("discrete");
     map[QStringLiteral("unit")] = func.unit;
+    map[QStringLiteral("suppressOverlay")] = func.suppressOverlay ? 1 : 0;
 
     if (func.minValue.has_value()) {
         map[QStringLiteral("minValue")] = func.minValue.value();
@@ -889,20 +918,19 @@ QVariantMap DialController::functionToVariantMap(const Function &func) const
         map[QStringLiteral("maxValue")] = func.maxValue.value();
     }
 
-    // Tell the overlay whether this function should keep the HUD hidden
-    // while in use — either because the keystroke needs focus on another
-    // window (zoom: Ctrl+=) or because covering content defeats the purpose
-    // (scroll: the user needs to see what they're scrolling through).
+    // Tell the overlay whether this function should keep the HUD hidden.
+    // Automatic for scroll/zoom/sticky; also respected if the user explicitly
+    // set suppressOverlay = true in the profile.
     static const QStringList kFocusEscapeKeys = {
         QStringLiteral("ZoomIn"), QStringLiteral("ZoomOut")
     };
     const bool isScroll =
-        func.clockwiseAction.type      == ActionConfig::Type::MouseScroll ||
+        func.clockwiseAction.type        == ActionConfig::Type::MouseScroll ||
         func.counterClockwiseAction.type == ActionConfig::Type::MouseScroll;
     const bool isSticky =
         func.clockwiseAction.sticky || func.counterClockwiseAction.sticky;
     const bool needsEscape =
-        isScroll || isSticky ||
+        func.suppressOverlay || isScroll || isSticky ||
         kFocusEscapeKeys.contains(func.clockwiseAction.keys) ||
         kFocusEscapeKeys.contains(func.counterClockwiseAction.keys);
     map[QStringLiteral("needsFocusEscape")] = needsEscape;

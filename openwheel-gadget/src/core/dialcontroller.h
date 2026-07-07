@@ -122,6 +122,11 @@ public:
     // Fires a single action immediately (used by the "Test" button in the settings UI).
     Q_INVOKABLE void testAction(const QVariantMap &actionData);
 
+    // Profile import / export.
+    // filePath is a local filesystem path (file:// URI stripped by QML).
+    Q_INVOKABLE QString importProfile(const QString &filePath);  // returns new id or ""
+    Q_INVOKABLE int     exportProfile(const QString &profileId, const QString &filePath); // 1=ok
+
 Q_SIGNALS:
     void activeChanged(int active);
     void profileChanged(const QString &profileName);

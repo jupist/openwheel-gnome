@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
+import QtQuick.Dialogs
 
 ApplicationWindow {
     id: settingsWindow
@@ -579,12 +580,17 @@ ApplicationWindow {
                             model: [
                                 { label: "+",  tip: "new",    fn: function() { newProfileDialog.open() } },
                                 { label: "−",  tip: "delete", fn: function() { deleteProfileDialog.open() } },
-                                { label: "⟳",  tip: "reload", fn: function() { dialController.reloadAllProfiles(); statusText.text = "reloaded." } }
+                                { label: "⟳",  tip: "reload", fn: function() { dialController.reloadAllProfiles(); statusText.text = "reloaded." } },
+                                { label: "↑",  tip: "import", fn: function() { importFileDialog.open() } },
+                                { label: "↓",  tip: "export", fn: function() { exportFileDialog.open() } }
                             ]
                             Rectangle {
                                 width: 28; height: 24
                                 color: "transparent"; radius: 2
-                                enabled: index === 1 ? (selectedProfileId.length > 0 && profileData && !profileData.isDefault) : true
+                                // delete + export require a profile to be selected
+                                enabled: (index === 1 || index === 4)
+                                         ? (selectedProfileId.length > 0 && profileData && !profileData.isDefault)
+                                         : true
                                 opacity: enabled ? 1.0 : 0.3
                                 Text { anchors.centerIn: parent; text: modelData.label; font.family: mono; font.pixelSize: 14; color: fg2 }
                                 MouseArea {
@@ -598,6 +604,43 @@ ApplicationWindow {
                             }
                         }
                         Item { Layout.fillWidth: true }
+                    }
+
+                    // ── Import file dialog ─────────────────────────────────
+                    FileDialog {
+                        id: importFileDialog
+                        title: "Import profile"
+                        fileMode: FileDialog.OpenFile
+                        nameFilters: ["OpenWheel profiles (*.json)", "All files (*)"]
+                        onAccepted: {
+                            var id = dialController.importProfile(selectedFile)
+                            if (id) {
+                                statusText.text = "imported: " + id
+                                statusClear.restart()
+                                settingsWindow.doSelectProfile(id)
+                            } else {
+                                statusText.text = "import failed!"
+                                statusClear.restart()
+                            }
+                        }
+                    }
+
+                    // ── Export file dialog ─────────────────────────────────
+                    FileDialog {
+                        id: exportFileDialog
+                        title: "Export profile"
+                        fileMode: FileDialog.SaveFile
+                        nameFilters: ["OpenWheel profiles (*.json)", "All files (*)"]
+                        defaultSuffix: "json"
+                        currentFile: selectedProfileId ? ("file://" + StandardPaths.writableLocation(StandardPaths.HomeLocation) + "/" + selectedProfileId + ".json") : ""
+                        onAccepted: {
+                            if (dialController.exportProfile(selectedProfileId, selectedFile) !== 0) {
+                                statusText.text = "exported."
+                            } else {
+                                statusText.text = "export failed!"
+                            }
+                            statusClear.restart()
+                        }
                     }
                 }
             }

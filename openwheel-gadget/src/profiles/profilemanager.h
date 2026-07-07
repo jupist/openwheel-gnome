@@ -87,6 +87,20 @@ public:
     void reloadProfiles();
 
     /**
+     * Import a profile from an external JSON file.
+     * The profile ID is taken from the file; if it conflicts with an existing
+     * user profile the user copy is overwritten. System profiles are protected.
+     * Returns the imported profile ID, or an empty string on failure.
+     */
+    QString importProfile(const QString &filePath);
+
+    /**
+     * Export a profile to an external JSON file.
+     * Returns true on success.
+     */
+    bool exportProfile(const QString &profileId, const QString &filePath) const;
+
+    /**
      * Returns the writable user profile directory path.
      */
     QString userProfileDir() const;

@@ -165,6 +165,8 @@ Function Function::fromJson(const QJsonObject &json)
         func.clickAction = ActionConfig::fromJson(json[QStringLiteral("clickAction")].toObject());
     }
 
+    func.suppressOverlay = json[QStringLiteral("suppressOverlay")].toBool(false);
+
     return func;
 }
 
@@ -189,6 +191,9 @@ QJsonObject Function::toJson() const
     json[QStringLiteral("clockwiseAction")] = clockwiseAction.toJson();
     json[QStringLiteral("counterClockwiseAction")] = counterClockwiseAction.toJson();
     json[QStringLiteral("clickAction")] = clickAction.toJson();
+
+    if (suppressOverlay)
+        json[QStringLiteral("suppressOverlay")] = true;
 
     return json;
 }
