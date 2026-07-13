@@ -17,14 +17,16 @@ Documentation=https://github.com/fredaime/openwheel
 # Start after the graphical session is ready (session D-Bus available)
 After=graphical-session.target
 PartOf=graphical-session.target
+# Stop retrying after 5 consecutive failures in 60 s — prevents D-Bus hammering
+StartLimitIntervalSec=60s
+StartLimitBurst=5
 
 [Service]
 Type=simple
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/asus_wheel
+# Only restart on unexpected failures, not on clean exit (e.g. device not found)
 Restart=on-failure
-RestartSec=3s
-# Give the daemon enough time to register on D-Bus before the gadget starts
-ExecStartPost=/bin/sleep 1
+RestartSec=5s
 
 [Install]
 WantedBy=graphical-session.target
